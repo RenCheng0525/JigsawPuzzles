@@ -1013,6 +1013,9 @@
             const offsetInWrapperY = e.clientY - wrapperRect.top;
             
             wrapper.classList.add('dragging');
+            // 隱藏 drawer 中的預覽圖
+            if (wrapper.pieceDiv) wrapper.pieceDiv.style.visibility = 'hidden';
+            
             const container = document.getElementById('puzzleContainer');
             const rect = container.getBoundingClientRect();
             
@@ -1073,7 +1076,15 @@
                 updateDrawerCount();
                 checkWin();
             } else {
+                // 拖曳失敗，從 container 移除 piece
                 document.getElementById('puzzleContainer').removeChild(currentPiece);
+                // 重置 piece 的旋轉（保持 drawer 中的旋轉狀態）
+                const baseTransform = currentPiece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                currentPiece.style.transform = baseTransform;
+                // 顯示 drawer 中的預覽圖
+                if (currentPiece.drawerWrapper.pieceDiv) {
+                    currentPiece.drawerWrapper.pieceDiv.style.visibility = 'visible';
+                }
                 currentPiece.drawerWrapper.classList.remove('dragging');
                 if (navigator.vibrate) navigator.vibrate([30,20,30]);
             }
@@ -1166,6 +1177,9 @@
             const { wrapper, piece, lastX, lastY, offsetInWrapperX, offsetInWrapperY } = touchStartInfo;
             
             wrapper.classList.add('dragging');
+            // 隱藏 drawer 中的預覽圖
+            if (wrapper.pieceDiv) wrapper.pieceDiv.style.visibility = 'hidden';
+            
             const container = document.getElementById('puzzleContainer');
             const rect = container.getBoundingClientRect();
             
@@ -1233,7 +1247,15 @@
                 updateDrawerCount();
                 checkWin();
             } else {
+                // 拖曳失敗，從 container 移除 piece
                 document.getElementById('puzzleContainer').removeChild(currentPiece);
+                // 重置 piece 的旋轉（保持 drawer 中的旋轉狀態）
+                const baseTransform = currentPiece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                currentPiece.style.transform = baseTransform;
+                // 顯示 drawer 中的預覽圖
+                if (currentPiece.drawerWrapper.pieceDiv) {
+                    currentPiece.drawerWrapper.pieceDiv.style.visibility = 'visible';
+                }
                 currentPiece.drawerWrapper.classList.remove('dragging');
                 if (navigator.vibrate) navigator.vibrate([30,20,30]);
             }
