@@ -232,6 +232,7 @@
             cursor: grab;
             flex-shrink: 0;
             margin: 9px;
+            overflow: visible;
         }
         .drawer-piece-wrapper.dragging { opacity: 0.3; }
         .drawer-piece-wrapper.placed { display: none; }
@@ -790,7 +791,7 @@
             const bgX = -(j * pw) + tab;
             const bgY = -(i * ph) + tab;
             
-            piece.style.cssText = `width:${actualW}px; height:${actualH}px; background-image:url(${originalImage.src}); background-size:${size.width}px ${size.height}px; background-position:${bgX}px ${bgY}px; clip-path:path('${path}'); -webkit-clip-path:path('${path}'); position:absolute; transform:translate(-${tab}px,-${tab}px);`;
+            piece.style.cssText = `width:${actualW}px; height:${actualH}px; background-image:url(${originalImage.src}); background-size:${size.width}px ${size.height}px; background-position:${bgX}px ${bgY}px; background-repeat:no-repeat; clip-path:path('${path}'); -webkit-clip-path:path('${path}'); position:absolute; transform:translate(-${tab}px,-${tab}px);`;
             piece.correctX = j * pw;
             piece.correctY = i * ph;
             piece.pieceNumber = i * cols + j + 1;
@@ -865,9 +866,13 @@
         function createDrawerItem(piece, pw, ph, tab) {
             const wrapper = document.createElement('div');
             wrapper.className = 'drawer-piece-wrapper';
-            wrapper.style.cssText = `width:${pw+2*tab}px; height:${ph+2*tab}px;`;
+            // wrapper 用 padding 來容納 translate 後的拼圖
+            wrapper.style.cssText = `width:${pw}px; height:${ph}px; padding:${tab}px; position:relative; box-sizing:content-box;`;
+            
             const div = document.createElement('div');
-            div.style.cssText = `width:${pw+2*tab}px; height:${ph+2*tab}px; background-image:${piece.style.backgroundImage}; background-size:${piece.style.backgroundSize}; background-position:${piece.style.backgroundPosition}; clip-path:${piece.style.clipPath}; -webkit-clip-path:${piece.style.webkitClipPath}; transform:${piece.style.transform};`;
+            // 完整複製 piece 樣式（包含 translate）
+            div.style.cssText = piece.style.cssText.replace('position:absolute;', 'position:relative;');
+            
             wrapper.appendChild(div);
             
             // 隨機旋轉（如果啟用）
@@ -875,13 +880,14 @@
             wrapper.currentRotation = randomRotation;
             piece.currentRotation = randomRotation;
             if (randomRotation !== 0) {
-                div.style.transform = `${piece.style.transform} rotate(${randomRotation}deg)`;
+                div.style.transform = `translate(-${tab}px,-${tab}px) rotate(${randomRotation}deg)`;
             }
             
             // 儲存編號供提示用
             wrapper.pieceNumber = piece.pieceNumber;
             wrapper.pieceRef = piece;
             wrapper.pieceDiv = div;
+            wrapper.tab = tab;
             wrapper.addEventListener('mousedown', startDragFromDrawer);
             wrapper.addEventListener('touchstart', startTouchFromDrawer, {passive: true});
             return wrapper;
@@ -997,7 +1003,12 @@
             })();
         }
 
-        // 從抽屜拖曳 (滑鼠)
+        // 從抽屜拖曳 (滑鼠) - 加入延遲判斷，短按顯示提示，長按才拖曳
+        let mouseStartInfo = null;
+        let mouseDragTimer = null;
+        let isMouseDragging = false;
+        const MOUSE_DRAG_DELAY = 150;
+
         function startDragFromDrawer(e) {
             if (!isPlaying) return;
             e.preventDefault();
@@ -1007,10 +1018,49 @@
             // 顯示編號提示
             showDrawerHint(wrapper);
             
-            // 記錄滑鼠在 wrapper 內的偏移（避免跳動）
+            // 記錄滑鼠資訊
             const wrapperRect = wrapper.getBoundingClientRect();
-            const offsetInWrapperX = e.clientX - wrapperRect.left;
-            const offsetInWrapperY = e.clientY - wrapperRect.top;
+            mouseStartInfo = {
+                wrapper: wrapper,
+                piece: piece,
+                clientX: e.clientX,
+                clientY: e.clientY,
+                offsetInWrapperX: e.clientX - wrapperRect.left,
+                offsetInWrapperY: e.clientY - wrapperRect.top
+            };
+            isMouseDragging = false;
+            
+            // 延遲啟動拖曳
+            mouseDragTimer = setTimeout(() => {
+                if (mouseStartInfo) {
+                    startActualMouseDrag();
+                }
+            }, MOUSE_DRAG_DELAY);
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+        
+        function handleMouseMove(e) {
+            if (!mouseStartInfo) return;
+            
+            // 更新位置
+            mouseStartInfo.clientX = e.clientX;
+            mouseStartInfo.clientY = e.clientY;
+            
+            // 如果已經在拖曳，移動拼圖
+            if (isMouseDragging && currentPiece) {
+                const rect = document.getElementById('puzzleContainer').getBoundingClientRect();
+                currentPiece.style.left = (e.clientX - rect.left - currentPiece.offX) + 'px';
+                currentPiece.style.top = (e.clientY - rect.top - currentPiece.offY) + 'px';
+            }
+        }
+        
+        function startActualMouseDrag() {
+            if (!mouseStartInfo) return;
+            
+            isMouseDragging = true;
+            const { wrapper, piece, clientX, clientY, offsetInWrapperX, offsetInWrapperY } = mouseStartInfo;
             
             wrapper.classList.add('dragging');
             // 隱藏 drawer 中的預覽圖
@@ -1019,15 +1069,17 @@
             const container = document.getElementById('puzzleContainer');
             const rect = container.getBoundingClientRect();
             
-            // 應用旋轉（如果有）
-            const rotation = wrapper.currentRotation || 0;
-            if (rotation !== 0) {
-                const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-                piece.style.transform = `${baseTransform} rotate(${rotation}deg)`;
+            // 確保 piece 不在 container 裡（以防萬一）
+            if (piece.parentElement === container) {
+                container.removeChild(piece);
             }
             
-            piece.style.left = (e.clientX - rect.left - offsetInWrapperX) + 'px';
-            piece.style.top = (e.clientY - rect.top - offsetInWrapperY) + 'px';
+            // 拖曳開始時立即轉正（不套用旋轉）
+            const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+            piece.style.transform = baseTransform;
+            
+            piece.style.left = (clientX - rect.left - offsetInWrapperX) + 'px';
+            piece.style.top = (clientY - rect.top - offsetInWrapperY) + 'px';
             piece.style.zIndex = '1000';
             piece.classList.add('dragging');
             container.appendChild(piece);
@@ -1036,40 +1088,45 @@
             currentPiece.drawerWrapper = wrapper;
             currentPiece.offX = offsetInWrapperX;
             currentPiece.offY = offsetInWrapperY;
-            
-            document.addEventListener('mousemove', dragFromDrawer);
-            document.addEventListener('mouseup', stopDragFromDrawer);
         }
         
-        function dragFromDrawer(e) {
-            if (!currentPiece) return;
-            const rect = document.getElementById('puzzleContainer').getBoundingClientRect();
-            currentPiece.style.left = (e.clientX - rect.left - currentPiece.offX) + 'px';
-            currentPiece.style.top = (e.clientY - rect.top - currentPiece.offY) + 'px';
-        }
-        
-        function stopDragFromDrawer() {
-            if (!currentPiece) return;
-            document.removeEventListener('mousemove', dragFromDrawer);
-            document.removeEventListener('mouseup', stopDragFromDrawer);
+        function handleMouseUp() {
+            clearTimeout(mouseDragTimer);
+            mouseDragTimer = null;
             
-            currentPiece.classList.remove('dragging');
-            currentPiece.style.zIndex = '';
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
             
-            const left = parseInt(currentPiece.style.left), top = parseInt(currentPiece.style.top);
+            if (!isMouseDragging) {
+                // 只是短按，不需要處理拖曳
+                mouseStartInfo = null;
+                return;
+            }
+            
+            if (!currentPiece) {
+                mouseStartInfo = null;
+                isMouseDragging = false;
+                return;
+            }
+            
+            const piece = currentPiece; // 保存引用
+            piece.classList.remove('dragging');
+            piece.style.zIndex = '';
+            
+            const left = parseInt(piece.style.left), top = parseInt(piece.style.top);
             
             // 位置正確就放置，並自動轉正
-            if (Math.abs(left - currentPiece.correctX) < 15 && Math.abs(top - currentPiece.correctY) < 15) {
-                currentPiece.style.transition = 'transform 0.3s';
-                currentPiece.style.left = currentPiece.correctX + 'px';
-                currentPiece.style.top = currentPiece.correctY + 'px';
+            if (Math.abs(left - piece.correctX) < 15 && Math.abs(top - piece.correctY) < 15) {
+                piece.style.transition = 'transform 0.3s';
+                piece.style.left = piece.correctX + 'px';
+                piece.style.top = piece.correctY + 'px';
                 // 自動轉正（移除旋轉）
-                currentPiece.style.transform = currentPiece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-                currentPiece.currentRotation = 0;
-                setTimeout(() => currentPiece.style.transition = '', 300);
-                currentPiece.isPlaced = true;
-                currentPiece.drawerWrapper.classList.add('placed');
-                const dp = drawerPieces.find(d => d.piece === currentPiece);
+                piece.style.transform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                piece.currentRotation = 0;
+                setTimeout(() => piece.style.transition = '', 300);
+                piece.isPlaced = true;
+                piece.drawerWrapper.classList.add('placed');
+                const dp = drawerPieces.find(d => d.piece === piece);
                 if (dp) dp.isPlaced = true;
                 playSnapSound();
                 if (navigator.vibrate) navigator.vibrate(20);
@@ -1077,18 +1134,25 @@
                 checkWin();
             } else {
                 // 拖曳失敗，從 container 移除 piece
-                document.getElementById('puzzleContainer').removeChild(currentPiece);
+                document.getElementById('puzzleContainer').removeChild(piece);
                 // 重置 piece 的旋轉（保持 drawer 中的旋轉狀態）
-                const baseTransform = currentPiece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-                currentPiece.style.transform = baseTransform;
+                const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                piece.style.transform = baseTransform;
                 // 顯示 drawer 中的預覽圖
-                if (currentPiece.drawerWrapper.pieceDiv) {
-                    currentPiece.drawerWrapper.pieceDiv.style.visibility = 'visible';
+                if (piece.drawerWrapper.pieceDiv) {
+                    piece.drawerWrapper.pieceDiv.style.visibility = 'visible';
                 }
-                currentPiece.drawerWrapper.classList.remove('dragging');
+                piece.drawerWrapper.classList.remove('dragging');
                 if (navigator.vibrate) navigator.vibrate([30,20,30]);
             }
+            
             currentPiece = null;
+            mouseStartInfo = null;
+            isMouseDragging = false;
+        }
+        
+        function dragFromDrawer(e) {
+            // 不再使用，改用 handleMouseMove
         }
 
         // 從抽屜拖曳 (觸控) - 加入滾動判斷
@@ -1183,12 +1247,14 @@
             const container = document.getElementById('puzzleContainer');
             const rect = container.getBoundingClientRect();
             
-            // 應用旋轉（如果有）
-            const rotation = wrapper.currentRotation || 0;
-            if (rotation !== 0) {
-                const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-                piece.style.transform = `${baseTransform} rotate(${rotation}deg)`;
+            // 確保 piece 不在 container 裡（以防萬一）
+            if (piece.parentElement === container) {
+                container.removeChild(piece);
             }
+            
+            // 拖曳開始時立即轉正（不套用旋轉）
+            const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+            piece.style.transform = baseTransform;
             
             // 使用偏移量，讓拼圖不會跳動
             piece.style.left = (lastX - rect.left - offsetInWrapperX) + 'px';
@@ -1224,23 +1290,24 @@
                 return;
             }
             
-            currentPiece.classList.remove('dragging');
-            currentPiece.style.zIndex = '';
+            const piece = currentPiece; // 保存引用
+            piece.classList.remove('dragging');
+            piece.style.zIndex = '';
             
-            const left = parseInt(currentPiece.style.left), top = parseInt(currentPiece.style.top);
+            const left = parseInt(piece.style.left), top = parseInt(piece.style.top);
             
             // 位置正確就放置，並自動轉正
-            if (Math.abs(left - currentPiece.correctX) < 15 && Math.abs(top - currentPiece.correctY) < 15) {
-                currentPiece.style.transition = 'transform 0.3s';
-                currentPiece.style.left = currentPiece.correctX + 'px';
-                currentPiece.style.top = currentPiece.correctY + 'px';
+            if (Math.abs(left - piece.correctX) < 15 && Math.abs(top - piece.correctY) < 15) {
+                piece.style.transition = 'transform 0.3s';
+                piece.style.left = piece.correctX + 'px';
+                piece.style.top = piece.correctY + 'px';
                 // 自動轉正（移除旋轉）
-                currentPiece.style.transform = currentPiece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-                currentPiece.currentRotation = 0;
-                setTimeout(() => currentPiece.style.transition = '', 300);
-                currentPiece.isPlaced = true;
-                currentPiece.drawerWrapper.classList.add('placed');
-                const dp = drawerPieces.find(d => d.piece === currentPiece);
+                piece.style.transform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                piece.currentRotation = 0;
+                setTimeout(() => piece.style.transition = '', 300);
+                piece.isPlaced = true;
+                piece.drawerWrapper.classList.add('placed');
+                const dp = drawerPieces.find(d => d.piece === piece);
                 if (dp) dp.isPlaced = true;
                 playSnapSound();
                 if (navigator.vibrate) navigator.vibrate(20);
@@ -1248,15 +1315,15 @@
                 checkWin();
             } else {
                 // 拖曳失敗，從 container 移除 piece
-                document.getElementById('puzzleContainer').removeChild(currentPiece);
+                document.getElementById('puzzleContainer').removeChild(piece);
                 // 重置 piece 的旋轉（保持 drawer 中的旋轉狀態）
-                const baseTransform = currentPiece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-                currentPiece.style.transform = baseTransform;
+                const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                piece.style.transform = baseTransform;
                 // 顯示 drawer 中的預覽圖
-                if (currentPiece.drawerWrapper.pieceDiv) {
-                    currentPiece.drawerWrapper.pieceDiv.style.visibility = 'visible';
+                if (piece.drawerWrapper.pieceDiv) {
+                    piece.drawerWrapper.pieceDiv.style.visibility = 'visible';
                 }
-                currentPiece.drawerWrapper.classList.remove('dragging');
+                piece.drawerWrapper.classList.remove('dragging');
                 if (navigator.vibrate) navigator.vibrate([30,20,30]);
             }
             
@@ -1349,9 +1416,11 @@
                     dp.drawerItem.currentRotation = randomRotation;
                     dp.piece.currentRotation = randomRotation;
                     const div = dp.drawerItem.pieceDiv;
+                    const tab = dp.drawerItem.tab;
                     if (div) {
-                        const baseTransform = dp.piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-                        div.style.transform = randomRotation !== 0 ? `${baseTransform} rotate(${randomRotation}deg)` : baseTransform;
+                        div.style.transform = randomRotation !== 0 
+                            ? `translate(-${tab}px,-${tab}px) rotate(${randomRotation}deg)` 
+                            : `translate(-${tab}px,-${tab}px)`;
                     }
                 }
             });
