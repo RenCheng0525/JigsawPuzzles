@@ -3,61 +3,33 @@
 
 <head>
     <title>曲線拼圖遊戲</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 0;
             font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            display: flex;
+            background-color: #1a1a1a;
             height: 100vh;
-            box-sizing: border-box;
             overflow: hidden;
-        }
-
-        .container {
-            display: flex;
-            gap: 20px;
-            width: 100%;
-            height: calc(100vh - 40px);
-        }
-
-        .controls {
-            width: 250px;
-            min-width: 250px;
-            padding: 15px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .game-area {
-            flex-grow: 1;
-            background-color: #000000;
-            border-radius: 8px;
+            width: 100%;
             height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
+            background-color: #000000;
+            position: relative;
             overflow: hidden;
+            box-sizing: border-box;
         }
 
         .puzzle-container {
-            position: relative;
+            position: absolute;
             background-color: #000000;
-            transition: width 0.3s ease, height 0.3s ease;
             box-sizing: border-box;
-        }
-
-        .target-area {
-            z-index: 0;
+            /* 位置由 JS 動態設置 */
         }
 
         .puzzle-piece {
@@ -65,9 +37,8 @@
             cursor: move;
             transition: none;
             background-repeat: no-repeat;
-            -webkit-clip-path: inherit;
-            clip-path: inherit;
             z-index: 1;
+            touch-action: none;
         }
 
         .puzzle-piece.dragging {
@@ -75,108 +46,357 @@
             filter: brightness(1.1) drop-shadow(0 0 15px rgba(255, 255, 255, 0.3));
         }
 
-        .puzzle-piece:hover {
-            z-index: 1000;
-            filter: brightness(1.05) drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
-        }
-
-        .preview {
-            width: 100%;
-            max-height: 150px;
-            object-fit: contain;
-            margin-top: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
-        .button {
-            width: 100%;
-            padding: 8px 16px;
-            margin: 5px 0;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .button:hover {
-            background-color: #45a049;
-        }
-
-        input[type="file"],
-        input[type="text"],
-        select {
-            width: calc(100% - 16px);
-            padding: 8px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        /* 控制面板抽屜 - 專業深色風格 */
+        .controls-drawer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200px;
+            height: 100%;
+            background: rgba(20, 20, 20, 0.95);
+            border-right: 2px solid rgba(255, 215, 0, 0.6);
+            box-shadow: 2px 0 15px rgba(0,0,0,0.5);
+            z-index: 300;
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+            padding: 15px;
             box-sizing: border-box;
+            color: white;
+        }
+        .controls-drawer.collapsed {
+            transform: translateX(-200px);
+        }
+        .controls-toggle {
+            position: absolute;
+            top: 50%;
+            left: 200px;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 50px;
+            background: rgba(20, 20, 20, 0.95);
+            border: 2px solid rgba(255, 215, 0, 0.6);
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            font-size: 14px;
+            color: white;
+            z-index: 301;
+            transition: left 0.3s ease;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        }
+        .controls-toggle:hover {
+            background: rgba(40, 40, 40, 0.95);
+        }
+        .controls-drawer.collapsed + .controls-toggle {
+            left: 0;
+        }
+        .controls-drawer h1 {
+            margin: 0 0 12px 0;
+            font-size: 1.2em;
+            color: gold;
+            text-align: center;
+        }
+        .controls-drawer .button {
+            width: 100%;
+            padding: 10px;
+            margin: 4px 0;
+            background: rgba(255, 215, 0, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .controls-drawer .button:hover {
+            background: rgba(255, 215, 0, 0.3);
+            border-color: gold;
+        }
+        .controls-drawer .button:active { 
+            background: rgba(255, 215, 0, 0.4);
+        }
+        .controls-drawer select {
+            width: 100%;
+            padding: 8px;
+            margin: 4px 0;
+            background: rgba(40, 40, 40, 0.9);
+            color: white;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            border-radius: 6px;
+        }
+        .controls-drawer select option {
+            background: #222;
+            color: white;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 6px 0;
+            font-size: 13px;
+            color: #ddd;
+        }
+        .checkbox-input { 
+            width: 16px; 
+            height: 16px;
+            accent-color: gold;
         }
 
-        h1 {
-            margin-top: 0;
-            font-size: 1.5em;
-            margin-bottom: 15px;
+        /* 浮動預覽圖 */
+        .floating-preview {
+            position: absolute;
+            top: 10px;
+            right: 60px;
+            width: 180px;
+            background: rgba(0,0,0,0.85);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 200;
+            cursor: move;
+            user-select: none;
+            touch-action: none;
+            display: none;
         }
+        .floating-preview.visible { display: block; }
+        .floating-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px 8px 0 0;
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+        }
+        .floating-preview-close {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.8);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0 2px;
+        }
+        .floating-preview img {
+            width: 100%;
+            display: block;
+            border-radius: 0 0 8px 8px;
+        }
+        .floating-preview-resize {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 18px;
+            height: 18px;
+            cursor: se-resize;
+            background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.3) 50%);
+            border-radius: 0 0 8px 0;
+        }
+        .show-preview-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 199;
+            display: none;
+        }
+        .show-preview-btn.visible { display: block; }
 
-        .piece-outline {
+        /* 拼圖抽屜 - 深藍色調與拼圖區區隔 */
+        .puzzle-drawer {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(20, 30, 50, 0.95), rgba(30, 40, 60, 0.95));
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            overflow: auto;
+            z-index: 100;
+            padding: 10px;
+            gap: 8px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .puzzle-drawer.drawer-bottom { bottom: 0; left: 0; right: 0; height: 180px; border-top: 2px solid rgba(100, 150, 255, 0.5); }
+        .puzzle-drawer.drawer-top { top: 0; left: 0; right: 0; height: 180px; border-bottom: 2px solid rgba(100, 150, 255, 0.5); }
+        .puzzle-drawer.drawer-left { top: 0; left: 0; bottom: 0; width: 180px; border-right: 2px solid rgba(100, 150, 255, 0.5); }
+        .puzzle-drawer.drawer-right { top: 0; right: 0; bottom: 0; width: 180px; border-left: 2px solid rgba(100, 150, 255, 0.5); }
+        .puzzle-drawer.drawer-none { display: none; }
+
+        .drawer-piece-wrapper {
+            position: relative;
+            cursor: grab;
+            flex-shrink: 0;
+            margin: 9px;
+        }
+        .drawer-piece-wrapper.dragging { opacity: 0.3; }
+        .drawer-piece-wrapper.placed { display: none; }
+        
+        .drawer-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
             pointer-events: none;
         }
-
-        .outlines-container {
+        
+        .drawer-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: gold;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 2px solid gold;
             pointer-events: none;
+            animation: hintFade 3s ease-out forwards;
+        }
+        
+        @keyframes hintFade {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
+        .drawer-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 4px;
+            z-index: 101;
+        }
+        .drawer-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .drawer-btn:hover { background: rgba(0,0,0,0.9); }
+        .drawer-btn.active { background: rgba(74,144,217,0.8); border-color: #4a90d9; }
+        .drawer-btn.shuffle-btn { background: rgba(0,0,0,0.7); }
+        .drawer-btn.shuffle-btn:hover { background: rgba(0,0,0,0.9); }
+        
+        /* 完成訊息 */
+        .completion-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            padding: 30px 50px;
+            border-radius: 20px;
+            border: 3px solid gold;
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .completion-message.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        
+        /* 載入進度 */
+        .progress-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .progress-text {
+            color: gold;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            width: 250px;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid gold;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, gold, orange);
+            width: 0%;
+            transition: width 0.1s;
+        }
+        
+        .drawer-count {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            z-index: 101;
+        }
+
+        .piece-outline { pointer-events: none; }
         .piece-number {
             position: absolute;
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
             color: rgba(255, 255, 255, 0.5);
-            font-size: 24px;
+            font-size: 12px;
             pointer-events: none;
-            user-select: none;
         }
 
-        .piece-hint {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            pointer-events: none;
-            z-index: 1002;
-        }
-
-        .checkbox-container {
-            display: flex;
+        /* 長按預覽 */
+        .preview-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
             align-items: center;
-            gap: 8px;
+            z-index: 2000;
         }
-
-        .checkbox-input {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-        }
-
-        .checkbox-label {
-            cursor: pointer;
-            user-select: none;
-        }
+        .preview-overlay.show { display: flex; }
+        .preview-overlay img { max-width: 90%; max-height: 90%; }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="controls">
-            <h1>拼圖遊戲</h1>
-            <input type="file" id="imageInput" accept="image/*">
+    <div class="game-area" id="gameArea">
+        <div id="puzzleContainer" class="puzzle-container"></div>
+        
+        <!-- 控制面板抽屜 -->
+        <div class="controls-drawer" id="controlsDrawer">
+            <h1>🧩 拼圖遊戲</h1>
+            <input type="file" id="imageInput" accept="image/*" style="display:none;">
+            <button class="button" onclick="selectImage()">📷 選擇圖片</button>
             <select id="pieceCount">
-                <option value="9">3x3 (9片)</option>
                 <option value="16">4x4 (16片)</option>
                 <option value="25">5x5 (25片)</option>
                 <option value="36">6x6 (36片)</option>
@@ -184,19 +404,51 @@
                 <option value="64">8x8 (64片)</option>
                 <option value="81">9x9 (81片)</option>
                 <option value="100">10x10 (100片)</option>
+                <option value="121">11x11 (121片)</option>
+                <option value="144">12x12 (144片)</option>
             </select>
-            <button class="button" onclick="startGame()">開始遊戲</button>
-            <button class="button" onclick="shuffleUnsolvedPieces()">打亂未拼塊</button>
-            <button class="button" onclick="autoComplete()">自動完成</button>
-            <div class="checkbox-container" style="margin: 5px 0;">
+            <button class="button" onclick="startGame()">▶ 開始遊戲</button>
+            <button class="button" onclick="autoComplete()">✨ 自動完成</button>
+            <div class="checkbox-container">
                 <input type="checkbox" id="toggleHint" class="checkbox-input">
-                <label for="toggleHint" class="checkbox-label">顯示提示</label>
+                <label for="toggleHint" class="checkbox-label">提示</label>
             </div>
-            <img id="preview" class="preview">
+            <div class="checkbox-container">
+                <input type="checkbox" id="toggleRotation" class="checkbox-input">
+                <label for="toggleRotation" class="checkbox-label">旋轉</label>
+            </div>
+            <div style="margin-top:10px; font-size:10px; color:#aaa;">💡 長按空白處查看原圖</div>
         </div>
-        <div class="game-area">
-            <div id="puzzleContainer" class="puzzle-container"></div>
+        <button class="controls-toggle" id="controlsToggle" onclick="toggleControls()">◀</button>
+        
+        <!-- 浮動預覽圖 -->
+        <div class="floating-preview" id="floatingPreview">
+            <div class="floating-preview-header">
+                <span>📷 預覽</span>
+                <button class="floating-preview-close" onclick="hidePreview()">✕</button>
+            </div>
+            <img id="previewImg" src="">
+            <div class="floating-preview-resize" id="previewResize"></div>
         </div>
+        <button class="show-preview-btn" id="showPreviewBtn" onclick="showPreview()">🖼</button>
+        
+        <!-- 抽屜控制 -->
+        <div class="drawer-count" id="drawerCount">剩餘: 0 塊</div>
+        <div class="drawer-controls">
+            <button class="drawer-btn" onclick="setDrawerPosition('top')">⬆</button>
+            <button class="drawer-btn active" onclick="setDrawerPosition('bottom')">⬇</button>
+            <button class="drawer-btn" onclick="setDrawerPosition('left')">⬅</button>
+            <button class="drawer-btn" onclick="setDrawerPosition('right')">➡</button>
+            <button class="drawer-btn" onclick="setDrawerPosition('none')">✕</button>
+            <button class="drawer-btn shuffle-btn" onclick="shuffleDrawer()">🔀</button>
+        </div>
+        
+        <!-- 拼圖抽屜 -->
+        <div class="puzzle-drawer drawer-bottom" id="puzzleDrawer"></div>
+    </div>
+
+    <div class="preview-overlay" id="previewOverlay">
+        <img id="previewOverlayImg" src="">
     </div>
 
     <script>
@@ -205,631 +457,868 @@
         let pieces = [];
         let currentPiece = null;
         let isPlaying = false;
-        let lastSize = { width: 0, height: 0 };
-        let resizeTimer;
         let edges = null;
         let showHint = false;
-        let hintElement = null;
+        let enableRotation = false;
         let rows, cols;
-        let draggedPieceNumber = null;
+        let drawerPosition = 'bottom';
+        let drawerPieces = [];
+        let audioContext = null;
+        let controlsCollapsed = false;
 
-        // 生成曲線路徑
-        function generateCurvedPath(width, height, edges, options = { isOutline: false, isRightEdge: false, isBottomEdge: false }) {
+        // 選擇圖片
+        function selectImage() {
+            document.getElementById('imageInput').click();
+        }
+
+        // 控制面板收合
+        function toggleControls() {
+            controlsCollapsed = !controlsCollapsed;
+            document.getElementById('controlsDrawer').classList.toggle('collapsed', controlsCollapsed);
+            document.getElementById('controlsToggle').textContent = controlsCollapsed ? '▶' : '◀';
+        }
+
+        // 浮動預覽拖曳與縮放
+        let previewDrag = { active: false, x: 0, y: 0 };
+        let previewResize = { active: false, w: 0 };
+
+        function showPreview() {
+            document.getElementById('floatingPreview').classList.add('visible');
+            document.getElementById('showPreviewBtn').classList.remove('visible');
+        }
+        
+        function hidePreview() {
+            document.getElementById('floatingPreview').classList.remove('visible');
+            document.getElementById('showPreviewBtn').classList.add('visible');
+        }
+
+        // 預覽拖曳
+        document.getElementById('floatingPreview').addEventListener('mousedown', function(e) {
+            if (e.target.closest('.floating-preview-close') || e.target.closest('.floating-preview-resize')) return;
+            previewDrag.active = true;
+            const rect = this.getBoundingClientRect();
+            previewDrag.x = e.clientX - rect.left;
+            previewDrag.y = e.clientY - rect.top;
+            e.preventDefault();
+        });
+        
+        document.getElementById('floatingPreview').addEventListener('touchstart', function(e) {
+            if (e.target.closest('.floating-preview-close') || e.target.closest('.floating-preview-resize')) return;
+            previewDrag.active = true;
+            const rect = this.getBoundingClientRect();
+            const t = e.touches[0];
+            previewDrag.x = t.clientX - rect.left;
+            previewDrag.y = t.clientY - rect.top;
+            e.preventDefault();
+        }, {passive: false});
+
+        document.addEventListener('mousemove', function(e) {
+            if (previewDrag.active) {
+                const fp = document.getElementById('floatingPreview');
+                fp.style.left = (e.clientX - previewDrag.x) + 'px';
+                fp.style.top = (e.clientY - previewDrag.y) + 'px';
+                fp.style.right = 'auto';
+            }
+            if (previewResize.active) {
+                const fp = document.getElementById('floatingPreview');
+                const w = Math.max(80, Math.min(300, e.clientX - fp.getBoundingClientRect().left));
+                fp.style.width = w + 'px';
+            }
+        });
+        
+        document.addEventListener('touchmove', function(e) {
+            if (previewDrag.active) {
+                const t = e.touches[0];
+                const fp = document.getElementById('floatingPreview');
+                fp.style.left = (t.clientX - previewDrag.x) + 'px';
+                fp.style.top = (t.clientY - previewDrag.y) + 'px';
+                fp.style.right = 'auto';
+            }
+            if (previewResize.active) {
+                const t = e.touches[0];
+                const fp = document.getElementById('floatingPreview');
+                const w = Math.max(80, Math.min(300, t.clientX - fp.getBoundingClientRect().left));
+                fp.style.width = w + 'px';
+            }
+        }, {passive: false});
+
+        document.addEventListener('mouseup', function() { previewDrag.active = false; previewResize.active = false; });
+        document.addEventListener('touchend', function() { previewDrag.active = false; previewResize.active = false; });
+
+        // 預覽縮放
+        document.getElementById('previewResize').addEventListener('mousedown', function(e) {
+            previewResize.active = true;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        document.getElementById('previewResize').addEventListener('touchstart', function(e) {
+            previewResize.active = true;
+            e.preventDefault();
+            e.stopPropagation();
+        }, {passive: false});
+
+        // 音效
+        function playSnapSound() {
+            try {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain); gain.connect(audioContext.destination);
+                osc.frequency.setValueAtTime(880, audioContext.currentTime);
+                osc.frequency.setValueAtTime(1175, audioContext.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                osc.start(); osc.stop(audioContext.currentTime + 0.15);
+            } catch(e) {}
+        }
+        
+        function playWinSound() {
+            try {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                [523, 659, 784, 1047].forEach((f, i) => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.connect(gain); gain.connect(audioContext.destination);
+                    osc.frequency.setValueAtTime(f, audioContext.currentTime);
+                    const t = audioContext.currentTime + i * 0.12;
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(0.3, t + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                    osc.start(t); osc.stop(t + 0.3);
+                });
+            } catch(e) {}
+        }
+
+        // 抽屜控制
+        function setDrawerPosition(pos) {
+            drawerPosition = pos;
+            document.getElementById('puzzleDrawer').className = 'puzzle-drawer drawer-' + pos;
+            document.querySelectorAll('.drawer-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // 只更新位置，不改變大小
+            if (originalImage && isPlaying) {
+                const container = document.getElementById('puzzleContainer');
+                const w = parseFloat(container.style.width);
+                const h = parseFloat(container.style.height);
+                const pos = calculateContainerPosition(w, h);
+                container.style.left = pos.left + 'px';
+                container.style.top = pos.top + 'px';
+            }
+        }
+        
+        function updateDrawerCount() {
+            document.getElementById('drawerCount').textContent = '剩餘: ' + drawerPieces.filter(d => !d.isPlaced).length + ' 塊';
+        }
+        
+        function shuffleDrawer() {
+            const drawer = document.getElementById('puzzleDrawer');
+            const items = Array.from(drawer.children);
+            for (let i = items.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                drawer.appendChild(items[j]);
+            }
+        }
+        
+        function updateDrawerLabels() {
+            // 只更新狀態，不添加永久標籤
+            // 勾選後點擊拼圖會顯示 3 秒提示
+        }
+
+        // 長按預覽
+        let longPressTimer = null;
+        
+        function showFullPreview() {
+            if (!originalImage) return;
+            document.getElementById('previewOverlayImg').src = originalImage.src;
+            document.getElementById('previewOverlay').classList.add('show');
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+        
+        function hideFullPreview() {
+            document.getElementById('previewOverlay').classList.remove('show');
+        }
+        
+        document.getElementById('gameArea').addEventListener('touchstart', function(e) {
+            if (e.target.closest('.drawer-piece-wrapper') || e.target.closest('.drawer-btn') || 
+                e.target.closest('.puzzle-drawer') || e.target.closest('.controls-drawer') ||
+                e.target.closest('.controls-toggle') || e.target.closest('.floating-preview')) return;
+            longPressTimer = setTimeout(showFullPreview, 500);
+        }, {passive: true});
+        
+        document.getElementById('gameArea').addEventListener('touchend', function() {
+            clearTimeout(longPressTimer); hideFullPreview();
+        }, {passive: true});
+        
+        document.getElementById('gameArea').addEventListener('touchmove', function() {
+            clearTimeout(longPressTimer);
+        }, {passive: true});
+        
+        document.getElementById('previewOverlay').addEventListener('click', hideFullPreview);
+
+        // 拼圖路徑生成 - 標準版本
+        function generateCurvedPath(width, height, edges) {
             const { top, right, bottom, left } = edges;
             const tabHeight = Math.min(width, height) * 0.15;
             const tabWidth = Math.min(width, height) * 0.5;
-            const curveSize = tabHeight * 0.8;
-
-            // 如果是輪廓且是邊緣拼圖，調整寬度或高度
-            let adjustedWidth = width;
-            let adjustedHeight = height;
-
-            if (options.isOutline) {
-                if (options.isRightEdge) {
-                    adjustedWidth -= tabHeight;
-                }
-
-                if (options.isBottomEdge) {
-                    adjustedHeight -= tabHeight;
-                }
-            }
 
             let path = `M ${tabHeight},${tabHeight}`;
-
-            // 使用調整後的尺寸
-            if (top === 'tab') {
-                path += ` h ${(adjustedWidth - tabWidth) / 2}` +
-                    ` c ${tabWidth / 6},0 ${tabWidth / 6},-${tabHeight} ${tabWidth / 3},-${tabHeight}` +
-                    ` h ${tabWidth / 3}` +
-                    ` c ${tabWidth / 6},0 ${tabWidth / 6},${tabHeight} ${tabWidth / 3},${tabHeight}` +
-                    ` h ${(adjustedWidth - tabWidth) / 2}`;
-            } else if (top === 'slot') {
-                path += ` h ${(adjustedWidth - tabWidth) / 2}` +
-                    ` c ${tabWidth / 6},0 ${tabWidth / 6},${tabHeight} ${tabWidth / 3},${tabHeight}` +
-                    ` h ${tabWidth / 3}` +
-                    ` c ${tabWidth / 6},0 ${tabWidth / 6},-${tabHeight} ${tabWidth / 3},-${tabHeight}` +
-                    ` h ${(adjustedWidth - tabWidth) / 2}`;
-            } else {
-                path += ` h ${adjustedWidth}`;
-            }
-
-            // 使用調整後的尺寸
-            if (right === 'tab') {
-                path += ` v ${(adjustedHeight - tabWidth) / 2}` +
-                    ` c 0,${tabWidth / 6} ${tabHeight},${tabWidth / 6} ${tabHeight},${tabWidth / 3}` +
-                    ` v ${tabWidth / 3}` +
-                    ` c 0,${tabWidth / 6} -${tabHeight},${tabWidth / 6} -${tabHeight},${tabWidth / 3}` +
-                    ` v ${(adjustedHeight - tabWidth) / 2}`;
-            } else if (right === 'slot') {
-                path += ` v ${(adjustedHeight - tabWidth) / 2}` +
-                    ` c 0,${tabWidth / 6} -${tabHeight},${tabWidth / 6} -${tabHeight},${tabWidth / 3}` +
-                    ` v ${tabWidth / 3}` +
-                    ` c 0,${tabWidth / 6} ${tabHeight},${tabWidth / 6} ${tabHeight},${tabWidth / 3}` +
-                    ` v ${(adjustedHeight - tabWidth) / 2}`;
-            } else {
-                path += ` v ${adjustedHeight}`;
-            }
-
-            // 使用調整後的尺寸
-            if (bottom === 'tab') {
-                path += ` h -${(adjustedWidth - tabWidth) / 2}` +
-                    ` c -${tabWidth / 6},0 -${tabWidth / 6},${tabHeight} -${tabWidth / 3},${tabHeight}` +
-                    ` h -${tabWidth / 3}` +
-                    ` c -${tabWidth / 6},0 -${tabWidth / 6},-${tabHeight} -${tabWidth / 3},-${tabHeight}` +
-                    ` h -${(adjustedWidth - tabWidth) / 2}`;
-            } else if (bottom === 'slot') {
-                path += ` h -${(adjustedWidth - tabWidth) / 2}` +
-                    ` c -${tabWidth / 6},0 -${tabWidth / 6},-${tabHeight} -${tabWidth / 3},-${tabHeight}` +
-                    ` h -${tabWidth / 3}` +
-                    ` c -${tabWidth / 6},0 -${tabWidth / 6},${tabHeight} -${tabWidth / 3},${tabHeight}` +
-                    ` h -${(adjustedWidth - tabWidth) / 2}`;
-            } else {
-                path += ` h -${adjustedWidth}`;
-            }
-
-            // 使用調整後的尺寸
-            if (left === 'tab') {
-                path += ` v -${(adjustedHeight - tabWidth) / 2}` +
-                    ` c 0,-${tabWidth / 6} -${tabHeight},-${tabWidth / 6} -${tabHeight},-${tabWidth / 3}` +
-                    ` v -${tabWidth / 3}` +
-                    ` c 0,-${tabWidth / 6} ${tabHeight},-${tabWidth / 6} ${tabHeight},-${tabWidth / 3}` +
-                    ` v -${(adjustedHeight - tabWidth) / 2}`;
-            } else if (left === 'slot') {
-                path += ` v -${(adjustedHeight - tabWidth) / 2}` +
-                    ` c 0,-${tabWidth / 6} ${tabHeight},-${tabWidth / 6} ${tabHeight},-${tabWidth / 3}` +
-                    ` v -${tabWidth / 3}` +
-                    ` c 0,-${tabWidth / 6} -${tabHeight},-${tabWidth / 6} -${tabHeight},-${tabWidth / 3}` +
-                    ` v -${(adjustedHeight - tabWidth) / 2}`;
-            } else {
-                path += ` v -${adjustedHeight}`;
-            }
-
-            path += ' Z';
-            return path;
+            
+            // Top
+            if (top === 'tab') path += ` h ${(width-tabWidth)/2} c ${tabWidth/6},0 ${tabWidth/6},-${tabHeight} ${tabWidth/3},-${tabHeight} h ${tabWidth/3} c ${tabWidth/6},0 ${tabWidth/6},${tabHeight} ${tabWidth/3},${tabHeight} h ${(width-tabWidth)/2}`;
+            else if (top === 'slot') path += ` h ${(width-tabWidth)/2} c ${tabWidth/6},0 ${tabWidth/6},${tabHeight} ${tabWidth/3},${tabHeight} h ${tabWidth/3} c ${tabWidth/6},0 ${tabWidth/6},-${tabHeight} ${tabWidth/3},-${tabHeight} h ${(width-tabWidth)/2}`;
+            else path += ` h ${width}`;
+            
+            // Right
+            if (right === 'tab') path += ` v ${(height-tabWidth)/2} c 0,${tabWidth/6} ${tabHeight},${tabWidth/6} ${tabHeight},${tabWidth/3} v ${tabWidth/3} c 0,${tabWidth/6} -${tabHeight},${tabWidth/6} -${tabHeight},${tabWidth/3} v ${(height-tabWidth)/2}`;
+            else if (right === 'slot') path += ` v ${(height-tabWidth)/2} c 0,${tabWidth/6} -${tabHeight},${tabWidth/6} -${tabHeight},${tabWidth/3} v ${tabWidth/3} c 0,${tabWidth/6} ${tabHeight},${tabWidth/6} ${tabHeight},${tabWidth/3} v ${(height-tabWidth)/2}`;
+            else path += ` v ${height}`;
+            
+            // Bottom
+            if (bottom === 'tab') path += ` h -${(width-tabWidth)/2} c -${tabWidth/6},0 -${tabWidth/6},${tabHeight} -${tabWidth/3},${tabHeight} h -${tabWidth/3} c -${tabWidth/6},0 -${tabWidth/6},-${tabHeight} -${tabWidth/3},-${tabHeight} h -${(width-tabWidth)/2}`;
+            else if (bottom === 'slot') path += ` h -${(width-tabWidth)/2} c -${tabWidth/6},0 -${tabWidth/6},-${tabHeight} -${tabWidth/3},-${tabHeight} h -${tabWidth/3} c -${tabWidth/6},0 -${tabWidth/6},${tabHeight} -${tabWidth/3},${tabHeight} h -${(width-tabWidth)/2}`;
+            else path += ` h -${width}`;
+            
+            // Left
+            if (left === 'tab') path += ` v -${(height-tabWidth)/2} c 0,-${tabWidth/6} -${tabHeight},-${tabWidth/6} -${tabHeight},-${tabWidth/3} v -${tabWidth/3} c 0,-${tabWidth/6} ${tabHeight},-${tabWidth/6} ${tabHeight},-${tabWidth/3} v -${(height-tabWidth)/2}`;
+            else if (left === 'slot') path += ` v -${(height-tabWidth)/2} c 0,-${tabWidth/6} ${tabHeight},-${tabWidth/6} ${tabHeight},-${tabWidth/3} v -${tabWidth/3} c 0,-${tabWidth/6} -${tabHeight},-${tabWidth/6} -${tabHeight},-${tabWidth/3} v -${(height-tabWidth)/2}`;
+            else path += ` v -${height}`;
+            
+            return path + ' Z';
         }
 
-        // 生成拼圖邊緣類型
         function generateEdges(rows, cols) {
-            const pieces = Array(rows).fill().map(() =>
-                Array(cols).fill().map(() => ({
-                    top: null,
-                    right: null,
-                    bottom: null,
-                    left: null
-                }))
-            );
-
-            // 處理水平連接
-            for (let i = 0; i < rows - 1; i++) {
-                for (let j = 0; j < cols; j++) {
-                    const isTab = Math.random() < 0.5;
-                    pieces[i][j].bottom = isTab ? 'tab' : 'slot';
-                    pieces[i + 1][j].top = isTab ? 'slot' : 'tab';
-                }
-            }
-
-            // 處理垂直連接
-            for (let i = 0; i < rows; i++) {
-                for (let j = 0; j < cols - 1; j++) {
-                    const isTab = Math.random() < 0.5;
-                    pieces[i][j].right = isTab ? 'tab' : 'slot';
-                    pieces[i][j + 1].left = isTab ? 'slot' : 'tab';
-                }
-            }
-
-            return pieces;
+            const p = Array(rows).fill().map(() => Array(cols).fill().map(() => ({top:null,right:null,bottom:null,left:null})));
+            for (let i = 0; i < rows-1; i++) for (let j = 0; j < cols; j++) { const t = Math.random() < 0.5; p[i][j].bottom = t ? 'tab' : 'slot'; p[i+1][j].top = t ? 'slot' : 'tab'; }
+            for (let i = 0; i < rows; i++) for (let j = 0; j < cols-1; j++) { const t = Math.random() < 0.5; p[i][j].right = t ? 'tab' : 'slot'; p[i][j+1].left = t ? 'slot' : 'tab'; }
+            return p;
         }
 
-        function getPieceEdgeTypes(i, j, rows, cols, pieces) {
-            return pieces[i][j];
-        }
-
-        // 圖片載入相關函數
-        document.getElementById('imageInput').addEventListener('change', function (e) {
+        // 圖片載入
+        document.getElementById('imageInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function (event) {
-                    loadImage(event.target.result);
-                };
+                reader.onload = function(ev) { loadImage(ev.target.result); };
                 reader.readAsDataURL(file);
             }
+            e.target.value = '';
         });
 
         function loadImage(src) {
             originalImage = new Image();
-            originalImage.onload = function () {
-                document.getElementById('preview').src = src;
-
+            originalImage.onload = function() {
+                document.getElementById('previewImg').src = src;
+                showPreview();
                 startGame();
-
-                pieces.forEach((piece, index) => {
-                    piece.style.left = piece.correctX + 'px';
-                    piece.style.top = piece.correctY + 'px';
-                });
             };
             originalImage.src = src;
         }
 
-        // 容器尺寸計算
+        // 計算拼圖區大小（只在開始遊戲時調用一次）
+        // 使用最小可用空間，確保 drawer 在任何位置都不會超出
         function calculateContainerSize() {
             const gameArea = document.querySelector('.game-area');
-            const availableWidth = gameArea.clientWidth - 40;
-            const availableHeight = gameArea.clientHeight - 40;
-            const imageRatio = originalImage.width / originalImage.height;
-
-            let containerWidth, containerHeight;
-
-            if (availableWidth / availableHeight > imageRatio) {
-                containerHeight = availableHeight;
-                containerWidth = containerHeight * imageRatio;
+            const totalWidth = gameArea.offsetWidth;
+            const totalHeight = gameArea.offsetHeight;
+            
+            const drawerSize = 180;
+            const tabMargin = 10; // 預留 tab 突出空間（最小化）
+            
+            // 同時預留上下和左右的 drawer 空間，取最小可用區域
+            // 這樣無論 drawer 在哪個方向，拼圖區都能完整顯示
+            const availableWidth = totalWidth - drawerSize - tabMargin * 2;
+            const availableHeight = totalHeight - drawerSize - tabMargin * 2;
+            
+            // 根據圖片比例計算拼圖區大小
+            const ratio = originalImage.width / originalImage.height;
+            let w, h;
+            if (availableWidth / availableHeight > ratio) {
+                h = availableHeight;
+                w = h * ratio;
             } else {
-                containerWidth = availableWidth;
-                containerHeight = containerWidth / imageRatio;
+                w = availableWidth;
+                h = w / ratio;
             }
-
-            return { width: containerWidth, height: containerHeight };
+            
+            return { width: w, height: h };
+        }
+        
+        // 計算拼圖區位置（切換抽屜方向時調用）
+        function calculateContainerPosition(containerWidth, containerHeight) {
+            const gameArea = document.querySelector('.game-area');
+            const totalWidth = gameArea.offsetWidth;
+            const totalHeight = gameArea.offsetHeight;
+            
+            const drawerSize = 180;
+            
+            // 計算可用區域的邊界
+            let left = 0, top = 0;
+            let right = totalWidth;
+            let bottom = totalHeight;
+            
+            // 根據抽屜位置調整邊界
+            if (drawerPosition === 'left') left = drawerSize;
+            else if (drawerPosition === 'right') right = totalWidth - drawerSize;
+            else if (drawerPosition === 'top') top = drawerSize;
+            else if (drawerPosition === 'bottom') bottom = totalHeight - drawerSize;
+            
+            const availableWidth = right - left;
+            const availableHeight = bottom - top;
+            
+            // 計算置中位置
+            const centerX = left + (availableWidth - containerWidth) / 2;
+            const centerY = top + (availableHeight - containerHeight) / 2;
+            
+            return { left: centerX, top: centerY };
         }
 
-        // 創建拼圖片段
-        function createPuzzlePiece(i, j, pieceWidth, pieceHeight, size, edges) {
+        // 創建拼圖塊 - 圖片內縮，讓邊緣拼圖有延伸空間
+        function createPuzzlePiece(i, j, pw, ph, size, ed) {
             const piece = document.createElement('div');
             piece.className = 'puzzle-piece';
-
-            const tabHeight = Math.min(pieceWidth, pieceHeight) * 0.15;
-            const path = generateCurvedPath(pieceWidth, pieceHeight, edges, {
-                isOutline: true,
-                isRightEdge: j === cols - 1,
-                isBottomEdge: i === rows - 1
-            });
-
-            const clipPath = `path('${path}')`;
-
-            // 設置拼圖片段樣式
-            piece.style.width = (pieceWidth + 2 * tabHeight) + 'px';
-            piece.style.height = (pieceHeight + 2 * tabHeight) + 'px';
-            piece.style.backgroundImage = `url(${originalImage.src})`;
-            piece.style.backgroundSize = `${size.width}px ${size.height}px`;
-            piece.style.backgroundPosition = `-${j * pieceWidth}px -${i * pieceHeight}px`;
-            piece.style.clipPath = clipPath;
-            piece.style.webkitClipPath = clipPath;
-            piece.style.position = 'absolute';
-            piece.style.transform = `translate(-${tabHeight}px, -${tabHeight}px)`;
-
-            // 設置正確位置（不包含tabHeight的偏移）
-            piece.correctX = j * pieceWidth;
-            piece.correctY = i * pieceHeight;
-
-            // 設置隨機初始位置
-            const maxX = size.width - pieceWidth;
-            const maxY = size.height - pieceHeight;
-            piece.style.left = Math.random() * maxX + 'px';
-            piece.style.top = Math.random() * maxY + 'px';
-
-            piece.pieceNumber = i * rows + j + 1;
-
+            const tab = Math.min(pw, ph) * 0.15;
+            
+            // 邊緣拼圖使用延伸路徑
+            const path = generatePiecePath(pw, ph, ed);
+            
+            const actualW = pw + 2*tab;
+            const actualH = ph + 2*tab;
+            
+            // 圖片內縮：讓圖片從 tab 位置開始，四周留出 tab 空間
+            // 背景圖大小不變，但位置往內偏移 tab
+            const bgX = -(j * pw) + tab;
+            const bgY = -(i * ph) + tab;
+            
+            piece.style.cssText = `width:${actualW}px; height:${actualH}px; background-image:url(${originalImage.src}); background-size:${size.width}px ${size.height}px; background-position:${bgX}px ${bgY}px; clip-path:path('${path}'); -webkit-clip-path:path('${path}'); position:absolute; transform:translate(-${tab}px,-${tab}px);`;
+            piece.correctX = j * pw;
+            piece.correctY = i * ph;
+            piece.pieceNumber = i * cols + j + 1;
+            piece.isPlaced = false;
             return piece;
         }
+        
+        // 拼圖塊路徑 - 平直邊延伸到 tab 位置
+        function generatePiecePath(width, height, edges) {
+            const { top, right, bottom, left } = edges;
+            const tabHeight = Math.min(width, height) * 0.15;
+            const tabWidth = Math.min(width, height) * 0.5;
 
-        // 創建拼圖塊輪廓指引
-        function createPieceOutline(i, j, pieceWidth, pieceHeight, size, edges) {
+            let path = `M ${tabHeight},${tabHeight}`;
+            
+            // Top
+            if (top === 'tab') path += ` h ${(width-tabWidth)/2} c ${tabWidth/6},0 ${tabWidth/6},-${tabHeight} ${tabWidth/3},-${tabHeight} h ${tabWidth/3} c ${tabWidth/6},0 ${tabWidth/6},${tabHeight} ${tabWidth/3},${tabHeight} h ${(width-tabWidth)/2}`;
+            else if (top === 'slot') path += ` h ${(width-tabWidth)/2} c ${tabWidth/6},0 ${tabWidth/6},${tabHeight} ${tabWidth/3},${tabHeight} h ${tabWidth/3} c ${tabWidth/6},0 ${tabWidth/6},-${tabHeight} ${tabWidth/3},-${tabHeight} h ${(width-tabWidth)/2}`;
+            else path += ` v -${tabHeight} h ${width} v ${tabHeight}`;
+            
+            // Right
+            if (right === 'tab') path += ` v ${(height-tabWidth)/2} c 0,${tabWidth/6} ${tabHeight},${tabWidth/6} ${tabHeight},${tabWidth/3} v ${tabWidth/3} c 0,${tabWidth/6} -${tabHeight},${tabWidth/6} -${tabHeight},${tabWidth/3} v ${(height-tabWidth)/2}`;
+            else if (right === 'slot') path += ` v ${(height-tabWidth)/2} c 0,${tabWidth/6} -${tabHeight},${tabWidth/6} -${tabHeight},${tabWidth/3} v ${tabWidth/3} c 0,${tabWidth/6} ${tabHeight},${tabWidth/6} ${tabHeight},${tabWidth/3} v ${(height-tabWidth)/2}`;
+            else path += ` h ${tabHeight} v ${height} h -${tabHeight}`;
+            
+            // Bottom
+            if (bottom === 'tab') path += ` h -${(width-tabWidth)/2} c -${tabWidth/6},0 -${tabWidth/6},${tabHeight} -${tabWidth/3},${tabHeight} h -${tabWidth/3} c -${tabWidth/6},0 -${tabWidth/6},-${tabHeight} -${tabWidth/3},-${tabHeight} h -${(width-tabWidth)/2}`;
+            else if (bottom === 'slot') path += ` h -${(width-tabWidth)/2} c -${tabWidth/6},0 -${tabWidth/6},-${tabHeight} -${tabWidth/3},-${tabHeight} h -${tabWidth/3} c -${tabWidth/6},0 -${tabWidth/6},${tabHeight} -${tabWidth/3},${tabHeight} h -${(width-tabWidth)/2}`;
+            else path += ` v ${tabHeight} h -${width} v -${tabHeight}`;
+            
+            // Left
+            if (left === 'tab') path += ` v -${(height-tabWidth)/2} c 0,-${tabWidth/6} -${tabHeight},-${tabWidth/6} -${tabHeight},-${tabWidth/3} v -${tabWidth/3} c 0,-${tabWidth/6} ${tabHeight},-${tabWidth/6} ${tabHeight},-${tabWidth/3} v -${(height-tabWidth)/2}`;
+            else if (left === 'slot') path += ` v -${(height-tabWidth)/2} c 0,-${tabWidth/6} ${tabHeight},-${tabWidth/6} ${tabHeight},-${tabWidth/3} v -${tabWidth/3} c 0,-${tabWidth/6} -${tabHeight},-${tabWidth/6} -${tabHeight},-${tabWidth/3} v -${(height-tabWidth)/2}`;
+            else path += ` h -${tabHeight} v -${height} h ${tabHeight}`;
+            
+            return path + ' Z';
+        }
+
+        // 輪廓線 - 使用與拼圖塊相同的路徑
+        function createPieceOutline(i, j, pw, ph, size, ed) {
             const outline = document.createElement('div');
             outline.className = 'piece-outline';
-            const tabHeight = Math.min(pieceWidth, pieceHeight) * 0.15;
-
-            // 計算行數和列數
-            const cols = Math.floor(size.width / pieceWidth);
-            const rows = Math.floor(size.height / pieceHeight);
-
-            // 使用新的參數調用 generateCurvedPath
-            const path = generateCurvedPath(pieceWidth, pieceHeight, edges, {
-                isOutline: true,
-                isRightEdge: j === cols - 1,
-                isBottomEdge: i === rows - 1
-            });
-
-            // 創建 SVG 元素
+            const tab = Math.min(pw, ph) * 0.15;
+            // 格線使用 generateCurvedPath（不延伸平直邊）
+            const path = generateCurvedPath(pw, ph, ed);
+            
+            const svgW = pw + 2*tab;
+            const svgH = ph + 2*tab;
+            
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.setAttribute("width", pieceWidth + 2 * tabHeight);
-            svg.setAttribute("height", pieceHeight + 2 * tabHeight);
-
-            // 創建路徑元素
-            const pathElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            pathElement.setAttribute("d", path);
-            pathElement.setAttribute("fill", "none");
-            pathElement.setAttribute("stroke", "rgba(255, 255, 255, 0.3)");
-            pathElement.setAttribute("stroke-width", "2");
-            pathElement.setAttribute("stroke-dasharray", "5,5");
-
-            svg.appendChild(pathElement);
+            svg.setAttribute("width", svgW); 
+            svg.setAttribute("height", svgH);
+            const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            p.setAttribute("d", path); 
+            p.setAttribute("fill", "none"); 
+            p.setAttribute("stroke", "rgba(255,255,255,0.35)"); 
+            p.setAttribute("stroke-width", "1");
+            p.setAttribute("stroke-linejoin", "round");
+            p.setAttribute("stroke-linecap", "round");
+            svg.appendChild(p); 
             outline.appendChild(svg);
-
-            // 設置輪廓位置
-            outline.style.cssText = `
-        position: absolute;
-        left: ${j * pieceWidth}px;
-        top: ${i * pieceHeight}px;
-        pointer-events: none;
-        z-index: 0;
-        transform: translate(-${tabHeight}px, -${tabHeight}px);
-    `;
-
-            if (showHint) {
-                const pieceNumber = document.createElement('div');
-                pieceNumber.className = 'piece-number';
-                pieceNumber.textContent = (i * rows + j + 1).toString();
-                outline.appendChild(pieceNumber);
+            outline.style.cssText = `position:absolute; left:${j*pw}px; top:${i*ph}px; pointer-events:none; z-index:0; transform:translate(-${tab}px,-${tab}px);`;
+            if (showHint) { 
+                const n = document.createElement('div'); 
+                n.className = 'piece-number'; 
+                n.textContent = i*cols+j+1; 
+                outline.appendChild(n); 
             }
-
             return outline;
         }
 
-        function shuffleUnsolvedPieces() {
-            if (!isPlaying) return;
-
-            const container = document.getElementById('puzzleContainer');
-            const containerRect = container.getBoundingClientRect();
-
-            pieces.forEach(piece => {
-                const left = parseInt(piece.style.left);
-                const top = parseInt(piece.style.top);
-
-                // 檢查是否已在正確位置
-                if (Math.abs(left - piece.correctX) >= 10 || Math.abs(top - piece.correctY) >= 10) {
-                    // 隨機新位置 (包含可移出canvas範圍)
-                    const newLeft = Math.random() * (containerRect.width + piece.offsetWidth) - piece.offsetWidth;
-                    const newTop = Math.random() * (containerRect.height + piece.offsetHeight) - piece.offsetHeight;
-
-                    piece.style.transition = 'none';
-                    piece.style.left = newLeft + 'px';
-                    piece.style.top = newTop + 'px';
-                }
-            });
+        function createDrawerItem(piece, pw, ph, tab) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'drawer-piece-wrapper';
+            wrapper.style.cssText = `width:${pw+2*tab}px; height:${ph+2*tab}px;`;
+            const div = document.createElement('div');
+            div.style.cssText = `width:${pw+2*tab}px; height:${ph+2*tab}px; background-image:${piece.style.backgroundImage}; background-size:${piece.style.backgroundSize}; background-position:${piece.style.backgroundPosition}; clip-path:${piece.style.clipPath}; -webkit-clip-path:${piece.style.webkitClipPath}; transform:${piece.style.transform};`;
+            wrapper.appendChild(div);
+            
+            // 隨機旋轉（如果啟用）
+            const randomRotation = enableRotation ? [0, 90, 180, 270][Math.floor(Math.random() * 4)] : 0;
+            wrapper.currentRotation = randomRotation;
+            piece.currentRotation = randomRotation;
+            if (randomRotation !== 0) {
+                div.style.transform = `${piece.style.transform} rotate(${randomRotation}deg)`;
+            }
+            
+            // 儲存編號供提示用
+            wrapper.pieceNumber = piece.pieceNumber;
+            wrapper.pieceRef = piece;
+            wrapper.pieceDiv = div;
+            wrapper.addEventListener('mousedown', startDragFromDrawer);
+            wrapper.addEventListener('touchstart', startTouchFromDrawer, {passive: true});
+            return wrapper;
+        }
+        
+        // 顯示抽屜拼圖編號提示
+        function showDrawerHint(wrapper) {
+            if (!showHint) return;
+            if (!wrapper || wrapper.classList.contains('placed')) return;
+            
+            // 移除已存在的提示
+            const existing = wrapper.querySelector('.drawer-hint');
+            if (existing) existing.remove();
+            
+            // 創建提示
+            const hint = document.createElement('div');
+            hint.className = 'drawer-hint';
+            hint.textContent = wrapper.pieceNumber;
+            wrapper.appendChild(hint);
+            
+            // 3 秒後移除
+            setTimeout(() => hint.remove(), 3000);
         }
 
+        // 開始遊戲
         function startGame() {
-            if (!originalImage) {
-                alert('請先選擇圖片！');
-                return;
-            }
+            if (!originalImage) { alert('請先選擇圖片！'); return; }
+            
+            // 顯示進度
+            const progressOverlay = document.createElement('div');
+            progressOverlay.className = 'progress-overlay';
+            progressOverlay.innerHTML = `
+                <div class="progress-text" id="progressText">準備中...</div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            `;
+            document.body.appendChild(progressOverlay);
+            
+            // 使用 async 讓 UI 有機會更新
+            const updateProgress = (percent, text) => {
+                return new Promise(resolve => {
+                    document.getElementById('progressFill').style.width = percent + '%';
+                    if (text) document.getElementById('progressText').textContent = text;
+                    requestAnimationFrame(() => requestAnimationFrame(resolve));
+                });
+            };
+            
+            (async () => {
+                await updateProgress(10, '初始化...');
+                
+                const container = document.getElementById('puzzleContainer');
+                const drawer = document.getElementById('puzzleDrawer');
+                container.innerHTML = ''; drawer.innerHTML = '';
+                pieces = []; drawerPieces = []; isPlaying = true;
 
-            const container = document.getElementById('puzzleContainer');
-            container.innerHTML = '';
-            pieces = [];
-            isPlaying = true;
+                const size = calculateContainerSize();
+                const count = parseInt(document.getElementById('pieceCount').value);
+                rows = cols = Math.sqrt(count);
+                
+                const pw = size.width / cols;
+                const ph = size.height / rows;
+                const tab = Math.min(pw, ph) * 0.15;
+                
+                const pos = calculateContainerPosition(size.width, size.height);
 
-            const size = calculateContainerSize();
-            lastSize = size;
+                container.style.width = size.width + 'px';
+                container.style.height = size.height + 'px';
+                container.style.left = pos.left + 'px';
+                container.style.top = pos.top + 'px';
 
-            const pieceCount = parseInt(document.getElementById('pieceCount').value);
-            rows = Math.sqrt(pieceCount);
-            cols = rows;
+                const outlines = document.createElement('div');
+                outlines.className = 'outlines-container';
+                outlines.style.cssText = 'position:absolute;z-index:0;left:0;top:0;';
+                container.appendChild(outlines);
 
-            const baseWidth = size.width / cols;
-            const baseHeight = size.height / rows;
-            const tabHeight = Math.min(baseWidth, baseHeight) * 0.15;
-
-            // 修改容器尺寸計算
-            container.style.width = size.width + 'px';
-            container.style.height = size.height + 'px';
-            container.style.padding = '0';
-            container.style.position = 'relative';
-
-            // 創建輪廓容器
-            const outlinesContainer = document.createElement('div');
-            outlinesContainer.className = 'outlines-container';
-            outlinesContainer.style.position = 'absolute';
-            outlinesContainer.style.zIndex = '0';
-            outlinesContainer.style.left = '0';
-            outlinesContainer.style.top = '0';
-            container.appendChild(outlinesContainer);
-
-            // 生成拼圖片段
-            edges = generateEdges(rows, cols);
-
-            // 先創建所有輪廓
-            for (let i = 0; i < rows; i++) {
-                for (let j = 0; j < cols; j++) {
-                    const pieceEdges = getPieceEdgeTypes(i, j, rows, cols, edges);
-                    const outline = createPieceOutline(i, j, baseWidth, baseHeight, size, pieceEdges, rows);
-                    outlinesContainer.appendChild(outline);
+                edges = generateEdges(rows, cols);
+                
+                await updateProgress(30, '繪製格線...');
+                
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        outlines.appendChild(createPieceOutline(i, j, pw, ph, size, edges[i][j]));
+                    }
                 }
-            }
 
-            // 創建實際的拼圖片段
-            for (let i = 0; i < rows; i++) {
-                for (let j = 0; j < cols; j++) {
-                    const pieceEdges = getPieceEdgeTypes(i, j, rows, cols, edges);
-                    const piece = createPuzzlePiece(i, j, baseWidth, baseHeight, size, pieceEdges, rows);
+                await updateProgress(50, '切割拼圖...');
 
-                    piece.addEventListener('mousedown', startDragging);
-                    piece.addEventListener('touchstart', handleTouchStart, { passive: false });
-
+                let temp = [];
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        temp.push(createPuzzlePiece(i, j, pw, ph, size, edges[i][j]));
+                    }
+                    await updateProgress(50 + Math.floor((i / rows) * 30), '切割拼圖...');
+                }
+                
+                for (let i = temp.length - 1; i > 0; i--) { 
+                    const j = Math.floor(Math.random() * (i + 1)); 
+                    [temp[i], temp[j]] = [temp[j], temp[i]]; 
+                }
+                
+                await updateProgress(85, '打亂順序...');
+                
+                temp.forEach(piece => {
+                    const item = createDrawerItem(piece, pw, ph, tab);
+                    drawer.appendChild(item);
+                    drawerPieces.push({piece, drawerItem: item, isPlaced: false});
                     pieces.push(piece);
-                    container.appendChild(piece);
-                    piece.domElement = piece;
-                }
-            }
+                });
+                
+                updateDrawerCount();
+                
+                await updateProgress(100, '完成！');
+                setTimeout(() => progressOverlay.remove(), 300);
+            })();
         }
 
-        // 輔助函數：計算容器大小
-        function calculateContainerSize() {
-            const gameArea = document.querySelector('.game-area');
-            const availableWidth = gameArea.clientWidth - 40;
-            const availableHeight = gameArea.clientHeight - 40;
-            const imageRatio = originalImage.width / originalImage.height;
-
-            let containerWidth, containerHeight;
-
-            if (availableWidth / availableHeight > imageRatio) {
-                containerHeight = availableHeight;
-                containerWidth = containerHeight * imageRatio;
-            } else {
-                containerWidth = availableWidth;
-                containerHeight = containerWidth / imageRatio;
-            }
-
-            return { width: containerWidth, height: containerHeight };
-        }
-
-        function drag(e) {
-            if (!currentPiece || !isPlaying) return;
-            e.preventDefault();
-
-            const container = document.getElementById('puzzleContainer');
-            const containerRect = container.getBoundingClientRect();
-            const pieceRect = currentPiece.getBoundingClientRect();
-
-            let left = e.clientX - containerRect.left - currentPiece.offsetX;
-            let top = e.clientY - containerRect.top - currentPiece.offsetY;
-
-            left = Math.max(-pieceRect.width, Math.min(left, containerRect.width));
-            top = Math.max(-pieceRect.height, Math.min(top, containerRect.height));
-
-            currentPiece.style.left = left + 'px';
-            currentPiece.style.top = top + 'px';
-
-            if (Math.abs(left - currentPiece.correctX) < 10 && Math.abs(top - currentPiece.correctY) < 10) {
-                currentPiece.style.left = currentPiece.correctX + 'px';
-                currentPiece.style.top = currentPiece.correctY + 'px';
-            }
-
-            checkWin();
-        }
-
-        function startDragging(e) {
-            if (!isPlaying) return;
-            if (e.button !== 0) return;
-
-            e.preventDefault();
-            currentPiece = this;
-            currentPiece.classList.add('dragging');
-
-            draggedPieceNumber = currentPiece.pieceNumber;
-
-            if (showHint) {
-                if (!hintElement) {
-                    hintElement = document.createElement('div');
-                    hintElement.className = 'piece-hint';
-                    document.body.appendChild(hintElement);
-                }
-                hintElement.textContent = `第 ${draggedPieceNumber} 塊`;
-                hintElement.style.left = (e.clientX + 10) + 'px';
-                hintElement.style.top = (e.clientY + 10) + 'px';
-                hintElement.style.display = 'block';
-            }
-
-            const container = document.getElementById('puzzleContainer');
-            const containerRect = container.getBoundingClientRect();
-            const pieceRect = currentPiece.getBoundingClientRect();
-            const tabHeight = Math.min(pieceRect.width, pieceRect.height) * 0.15;
-
-            currentPiece.offsetX = e.clientX - containerRect.left - parseInt(currentPiece.style.left);
-            currentPiece.offsetY = e.clientY - containerRect.top - parseInt(currentPiece.style.top);
-
-            currentPiece.style.zIndex = '1000';
-
-            document.addEventListener('mousemove', drag);
-            document.addEventListener('mouseup', stopDragging);
-        }
-
-        function stopDragging() {
-            if (!currentPiece) return;
-
-            currentPiece.classList.remove('dragging');
-            currentPiece.style.zIndex = '';
-
-            if (hintElement) {
-                hintElement.style.display = 'none';
-            }
-            draggedPieceNumber = null;
-
-            document.removeEventListener('mousemove', drag);
-            document.removeEventListener('mouseup', stopDragging);
-
-            const left = parseInt(currentPiece.style.left);
-            const top = parseInt(currentPiece.style.top);
-
-            if (Math.abs(left - currentPiece.correctX) < 10 && Math.abs(top - currentPiece.correctY) < 10) {
-                currentPiece.style.left = currentPiece.correctX + 'px';
-                currentPiece.style.top = currentPiece.correctY + 'px';
-            }
-
-            currentPiece = null;
-        }
-
-        // 修改觸控事件處理
-        function handleTouchStart(e) {
+        // 從抽屜拖曳 (滑鼠)
+        function startDragFromDrawer(e) {
             if (!isPlaying) return;
             e.preventDefault();
-
-            const touch = e.touches[0];
-            currentPiece = this;
-            currentPiece.classList.add('dragging');
-
-            // 計算觸控點在拼圖片段內的相對位置
-            const rect = currentPiece.getBoundingClientRect();
-            currentPiece.offsetX = touch.clientX - rect.left;
-            currentPiece.offsetY = touch.clientY - rect.top;
-
-            // 將當前片段移到最上層
-            currentPiece.style.zIndex = '1000';
-
-            document.addEventListener('touchmove', handleTouchMove, { passive: false });
-            document.addEventListener('touchend', handleTouchEnd);
-        }
-
-        function handleTouchMove(e) {
-            if (!currentPiece || !isPlaying) return;
-            e.preventDefault();
-
-            const touch = e.touches[0];
+            const wrapper = this, piece = wrapper.pieceRef;
+            if (!piece || piece.isPlaced) return;
+            
+            wrapper.classList.add('dragging');
             const container = document.getElementById('puzzleContainer');
             const rect = container.getBoundingClientRect();
-
-            let left = touch.clientX - rect.left - currentPiece.offsetX;
-            let top = touch.clientY - rect.top - currentPiece.offsetY;
-
-            left = Math.max(-currentPiece.offsetWidth, Math.min(left, rect.width));
-            top = Math.max(-currentPiece.offsetHeight, Math.min(top, rect.height));
-
-            currentPiece.style.left = left + 'px';
-            currentPiece.style.top = top + 'px';
-
-            if (Math.abs(left - currentPiece.correctX) < 10 && Math.abs(top - currentPiece.correctY) < 10) {
-                currentPiece.style.left = currentPiece.correctX + 'px';
-                currentPiece.style.top = currentPiece.correctY + 'px';
-            }
-
-            checkWin();
+            
+            piece.style.left = (e.clientX - rect.left - piece.offsetWidth/2) + 'px';
+            piece.style.top = (e.clientY - rect.top - piece.offsetHeight/2) + 'px';
+            piece.style.zIndex = '1000';
+            piece.classList.add('dragging');
+            container.appendChild(piece);
+            
+            currentPiece = piece;
+            currentPiece.drawerWrapper = wrapper;
+            currentPiece.offX = piece.offsetWidth/2;
+            currentPiece.offY = piece.offsetHeight/2;
+            
+            document.addEventListener('mousemove', dragFromDrawer);
+            document.addEventListener('mouseup', stopDragFromDrawer);
         }
-        function handleTouchEnd() {
+        
+        function dragFromDrawer(e) {
             if (!currentPiece) return;
-
+            const rect = document.getElementById('puzzleContainer').getBoundingClientRect();
+            currentPiece.style.left = (e.clientX - rect.left - currentPiece.offX) + 'px';
+            currentPiece.style.top = (e.clientY - rect.top - currentPiece.offY) + 'px';
+        }
+        
+        function stopDragFromDrawer() {
+            if (!currentPiece) return;
+            document.removeEventListener('mousemove', dragFromDrawer);
+            document.removeEventListener('mouseup', stopDragFromDrawer);
+            
             currentPiece.classList.remove('dragging');
             currentPiece.style.zIndex = '';
-
-            document.removeEventListener('touchmove', handleTouchMove);
-            document.removeEventListener('touchend', handleTouchEnd);
-
-            const left = parseInt(currentPiece.style.left);
-            const top = parseInt(currentPiece.style.top);
-            if (Math.abs(left - currentPiece.correctX) < 10 && Math.abs(top - currentPiece.correctY) < 10) {
+            
+            const left = parseInt(currentPiece.style.left), top = parseInt(currentPiece.style.top);
+            
+            // 位置正確就放置，並自動轉正
+            if (Math.abs(left - currentPiece.correctX) < 15 && Math.abs(top - currentPiece.correctY) < 15) {
+                currentPiece.style.transition = 'transform 0.3s';
                 currentPiece.style.left = currentPiece.correctX + 'px';
                 currentPiece.style.top = currentPiece.correctY + 'px';
+                // 自動轉正（移除旋轉）
+                currentPiece.style.transform = currentPiece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                currentPiece.currentRotation = 0;
+                setTimeout(() => currentPiece.style.transition = '', 300);
+                currentPiece.isPlaced = true;
+                currentPiece.drawerWrapper.classList.add('placed');
+                const dp = drawerPieces.find(d => d.piece === currentPiece);
+                if (dp) dp.isPlaced = true;
+                playSnapSound();
+                if (navigator.vibrate) navigator.vibrate(20);
+                updateDrawerCount();
+                checkWin();
+            } else {
+                document.getElementById('puzzleContainer').removeChild(currentPiece);
+                currentPiece.drawerWrapper.classList.remove('dragging');
+                if (navigator.vibrate) navigator.vibrate([30,20,30]);
             }
-
             currentPiece = null;
         }
 
-        function showPieceHint(e) {
-            if (!showHint || !isPlaying || !draggedPieceNumber) {
+        // 從抽屜拖曳 (觸控) - 加入滾動判斷
+        let touchStartInfo = null;
+        let dragDelayTimer = null;
+        let isDraggingFromDrawer = false;
+        const DRAG_DELAY = 150; // 長按150ms才開始拖曳
+        const SCROLL_THRESHOLD = 10; // 移動超過10px視為滾動
+
+        function startTouchFromDrawer(e) {
+            if (!isPlaying) return;
+            
+            const wrapper = this;
+            const piece = wrapper.pieceRef;
+            if (!piece || piece.isPlaced) return;
+            
+            // 顯示編號提示
+            showDrawerHint(wrapper);
+            
+            const touch = e.touches[0];
+            const wrapperRect = wrapper.getBoundingClientRect();
+            
+            touchStartInfo = {
+                wrapper: wrapper,
+                piece: piece,
+                startX: touch.clientX,
+                startY: touch.clientY,
+                lastX: touch.clientX,
+                lastY: touch.clientY,
+                // 記錄手指在 wrapper 內的偏移
+                offsetInWrapperX: touch.clientX - wrapperRect.left,
+                offsetInWrapperY: touch.clientY - wrapperRect.top,
+                scrollLeft: document.getElementById('puzzleDrawer').scrollLeft,
+                scrollTop: document.getElementById('puzzleDrawer').scrollTop
+            };
+            isDraggingFromDrawer = false;
+            
+            // 延遲啟動拖曳，給滾動機會
+            dragDelayTimer = setTimeout(() => {
+                if (touchStartInfo && !isDraggingFromDrawer) {
+                    // 檢查是否已經在滾動
+                    const drawer = document.getElementById('puzzleDrawer');
+                    const scrolled = Math.abs(drawer.scrollLeft - touchStartInfo.scrollLeft) > 5 || 
+                                    Math.abs(drawer.scrollTop - touchStartInfo.scrollTop) > 5;
+                    if (!scrolled) {
+                        startActualDrag();
+                    }
+                }
+            }, DRAG_DELAY);
+            
+            document.addEventListener('touchmove', handleDrawerTouchMove, {passive: false});
+            document.addEventListener('touchend', handleDrawerTouchEnd);
+        }
+        
+        function handleDrawerTouchMove(e) {
+            if (!touchStartInfo) return;
+            
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchStartInfo.startX;
+            const dy = touch.clientY - touchStartInfo.startY;
+            
+            // 更新最後觸控位置
+            touchStartInfo.lastX = touch.clientX;
+            touchStartInfo.lastY = touch.clientY;
+            
+            if (isDraggingFromDrawer) {
+                // 正在拖曳拼圖
+                e.preventDefault();
+                const rect = document.getElementById('puzzleContainer').getBoundingClientRect();
+                currentPiece.style.left = (touch.clientX - rect.left - currentPiece.offX) + 'px';
+                currentPiece.style.top = (touch.clientY - rect.top - currentPiece.offY) + 'px';
+            } else {
+                // 檢查是否為滾動意圖
+                if (Math.abs(dx) > SCROLL_THRESHOLD || Math.abs(dy) > SCROLL_THRESHOLD) {
+                    // 取消拖曳，允許滾動
+                    clearTimeout(dragDelayTimer);
+                    dragDelayTimer = null;
+                }
+            }
+        }
+        
+        function startActualDrag() {
+            if (!touchStartInfo) return;
+            
+            isDraggingFromDrawer = true;
+            const { wrapper, piece, lastX, lastY, offsetInWrapperX, offsetInWrapperY } = touchStartInfo;
+            
+            wrapper.classList.add('dragging');
+            const container = document.getElementById('puzzleContainer');
+            const rect = container.getBoundingClientRect();
+            
+            // 使用偏移量，讓拼圖不會跳動
+            piece.style.left = (lastX - rect.left - offsetInWrapperX) + 'px';
+            piece.style.top = (lastY - rect.top - offsetInWrapperY) + 'px';
+            piece.style.zIndex = '1000';
+            piece.classList.add('dragging');
+            container.appendChild(piece);
+            
+            currentPiece = piece;
+            currentPiece.drawerWrapper = wrapper;
+            // 保存偏移量供移動時使用
+            currentPiece.offX = offsetInWrapperX;
+            currentPiece.offY = offsetInWrapperY;
+            
+            if (navigator.vibrate) navigator.vibrate(10);
+        }
+        
+        function handleDrawerTouchEnd() {
+            clearTimeout(dragDelayTimer);
+            dragDelayTimer = null;
+            
+            document.removeEventListener('touchmove', handleDrawerTouchMove);
+            document.removeEventListener('touchend', handleDrawerTouchEnd);
+            
+            if (!isDraggingFromDrawer) {
+                touchStartInfo = null;
                 return;
             }
-
-            if (!hintElement) {
-                hintElement = document.createElement('div');
-                hintElement.className = 'piece-hint';
-                document.body.appendChild(hintElement);
+            
+            if (!currentPiece) {
+                touchStartInfo = null;
+                isDraggingFromDrawer = false;
+                return;
             }
-
-            hintElement.textContent = `第 ${draggedPieceNumber} 塊`;
-            hintElement.style.left = (e.clientX + 10) + 'px';
-            hintElement.style.top = (e.clientY + 10) + 'px';
-            hintElement.style.display = 'block';
+            
+            currentPiece.classList.remove('dragging');
+            currentPiece.style.zIndex = '';
+            
+            const left = parseInt(currentPiece.style.left), top = parseInt(currentPiece.style.top);
+            
+            // 位置正確就放置，並自動轉正
+            if (Math.abs(left - currentPiece.correctX) < 15 && Math.abs(top - currentPiece.correctY) < 15) {
+                currentPiece.style.transition = 'transform 0.3s';
+                currentPiece.style.left = currentPiece.correctX + 'px';
+                currentPiece.style.top = currentPiece.correctY + 'px';
+                // 自動轉正（移除旋轉）
+                currentPiece.style.transform = currentPiece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                currentPiece.currentRotation = 0;
+                setTimeout(() => currentPiece.style.transition = '', 300);
+                currentPiece.isPlaced = true;
+                currentPiece.drawerWrapper.classList.add('placed');
+                const dp = drawerPieces.find(d => d.piece === currentPiece);
+                if (dp) dp.isPlaced = true;
+                playSnapSound();
+                if (navigator.vibrate) navigator.vibrate(20);
+                updateDrawerCount();
+                checkWin();
+            } else {
+                document.getElementById('puzzleContainer').removeChild(currentPiece);
+                currentPiece.drawerWrapper.classList.remove('dragging');
+                if (navigator.vibrate) navigator.vibrate([30,20,30]);
+            }
+            
+            currentPiece = null;
+            touchStartInfo = null;
+            isDraggingFromDrawer = false;
         }
 
-        document.getElementById('toggleHint').addEventListener('change', function () {
-            showHint = this.checked;
-
-            const outlines = document.querySelectorAll('.piece-outline');
-            outlines.forEach((outline, index) => {
-                const i = Math.floor(index / rows);
-                const j = index % rows;
-
-                const existingNumber = outline.querySelector('.piece-number');
-                if (existingNumber) {
-                    outline.removeChild(existingNumber);
-                }
-
-                if (showHint) {
-                    const pieceNumber = document.createElement('div');
-                    pieceNumber.className = 'piece-number';
-                    pieceNumber.textContent = (i * rows + j + 1).toString();
-                    outline.appendChild(pieceNumber);
-                }
-            });
-        });
-
-        document.addEventListener('mousemove', function (e) {
-            if (!showHint || !isPlaying || !draggedPieceNumber) {
-                return;
-            }
-
-            if (!hintElement) {
-                hintElement = document.createElement('div');
-                hintElement.className = 'piece-hint';
-                document.body.appendChild(hintElement);
-            }
-
-            hintElement.textContent = `第 ${draggedPieceNumber} 塊`;
-            hintElement.style.left = (e.clientX + 10) + 'px';
-            hintElement.style.top = (e.clientY + 10) + 'px';
-            hintElement.style.display = 'block';
-        });
-
-        // 遊戲狀態檢查和完成處理
         function checkWin() {
-            const win = pieces.every(piece => {
-                const left = parseInt(piece.style.left);
-                const top = parseInt(piece.style.top);
-                return Math.abs(left - piece.correctX) < 5 && Math.abs(top - piece.correctY) < 5;
-            });
-
-            if (win) {
+            if (drawerPieces.every(d => d.isPlaced)) {
                 isPlaying = false;
-                setTimeout(() => alert('恭喜你完成拼圖！'), 100);
+                playWinSound();
+                if (navigator.vibrate) navigator.vibrate([100,50,100]);
+                // 展開控制面板
+                showControlsDrawer();
+                setTimeout(() => showCompletionMessage(), 300);
             }
+        }
+        
+        // 顯示美化的完成訊息
+        function showCompletionMessage() {
+            const msg = document.createElement('div');
+            msg.className = 'completion-message';
+            msg.innerHTML = '🎉 恭喜完成拼圖！';
+            document.body.appendChild(msg);
+            setTimeout(() => msg.classList.add('show'), 10);
+            setTimeout(() => {
+                msg.classList.remove('show');
+                setTimeout(() => msg.remove(), 500);
+            }, 3000);
+        }
+        
+        // 展開控制面板
+        function showControlsDrawer() {
+            controlsCollapsed = false;
+            document.getElementById('controlsDrawer').classList.remove('collapsed');
+            document.getElementById('controlsToggle').textContent = '◀';
         }
 
         function autoComplete() {
             if (!isPlaying) return;
-
-            pieces.forEach((piece, index) => {
-                setTimeout(() => {
-                    piece.style.transition = 'all 0.5s ease';
-                    piece.style.left = piece.correctX + 'px';
-                    piece.style.top = piece.correctY + 'px';
-                }, index * 50);
+            const container = document.getElementById('puzzleContainer');
+            drawerPieces.forEach((dp, i) => {
+                if (!dp.isPlaced) {
+                    setTimeout(() => {
+                        dp.piece.style.transition = 'all 0.4s';
+                        dp.piece.style.left = dp.piece.correctX + 'px';
+                        dp.piece.style.top = dp.piece.correctY + 'px';
+                        // 重置旋轉角度
+                        dp.piece.style.transform = dp.piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                        dp.piece.currentRotation = 0;
+                        dp.piece.isPlaced = true; dp.isPlaced = true;
+                        if (!dp.piece.parentElement) container.appendChild(dp.piece);
+                        dp.drawerItem.classList.add('placed');
+                        updateDrawerCount();
+                    }, i * 80);
+                }
             });
-
-            setTimeout(() => {
-                isPlaying = false;
-                alert('拼圖完成！');
-            }, pieces.length * 50 + 500);
+            setTimeout(() => { 
+                isPlaying = false; 
+                playWinSound(); 
+                showControlsDrawer();
+                showCompletionMessage();
+            }, drawerPieces.length * 80 + 500);
         }
 
+        // 提示開關
+        document.getElementById('toggleHint').addEventListener('change', function() {
+            showHint = this.checked;
+            // 更新拼圖區編號
+            document.querySelectorAll('.piece-outline').forEach((o, idx) => {
+                const n = o.querySelector('.piece-number');
+                if (n) o.removeChild(n);
+                if (showHint) {
+                    const num = document.createElement('div');
+                    num.className = 'piece-number';
+                    num.textContent = Math.floor(idx/cols)*cols + (idx%cols) + 1;
+                    o.appendChild(num);
+                }
+            });
+        });
+        
+        // 旋轉開關
+        document.getElementById('toggleRotation').addEventListener('change', function() {
+            enableRotation = this.checked;
+            // 更新未放置拼圖的旋轉
+            drawerPieces.forEach(dp => {
+                if (!dp.isPlaced) {
+                    const randomRotation = enableRotation ? [0, 90, 180, 270][Math.floor(Math.random() * 4)] : 0;
+                    dp.drawerItem.currentRotation = randomRotation;
+                    dp.piece.currentRotation = randomRotation;
+                    const div = dp.drawerItem.pieceDiv;
+                    if (div) {
+                        const baseTransform = dp.piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                        div.style.transform = randomRotation !== 0 ? `${baseTransform} rotate(${randomRotation}deg)` : baseTransform;
+                    }
+                }
+            });
+        });
+        
+        // 片數改變時重新開始遊戲
+        document.getElementById('pieceCount').addEventListener('change', function() {
+            if (originalImage) {
+                startGame();
+            }
+        });
     </script>
 </body>
-
 </html>
