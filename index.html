@@ -1004,20 +1004,35 @@
             const wrapper = this, piece = wrapper.pieceRef;
             if (!piece || piece.isPlaced) return;
             
+            // 顯示編號提示
+            showDrawerHint(wrapper);
+            
+            // 記錄滑鼠在 wrapper 內的偏移（避免跳動）
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const offsetInWrapperX = e.clientX - wrapperRect.left;
+            const offsetInWrapperY = e.clientY - wrapperRect.top;
+            
             wrapper.classList.add('dragging');
             const container = document.getElementById('puzzleContainer');
             const rect = container.getBoundingClientRect();
             
-            piece.style.left = (e.clientX - rect.left - piece.offsetWidth/2) + 'px';
-            piece.style.top = (e.clientY - rect.top - piece.offsetHeight/2) + 'px';
+            // 應用旋轉（如果有）
+            const rotation = wrapper.currentRotation || 0;
+            if (rotation !== 0) {
+                const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                piece.style.transform = `${baseTransform} rotate(${rotation}deg)`;
+            }
+            
+            piece.style.left = (e.clientX - rect.left - offsetInWrapperX) + 'px';
+            piece.style.top = (e.clientY - rect.top - offsetInWrapperY) + 'px';
             piece.style.zIndex = '1000';
             piece.classList.add('dragging');
             container.appendChild(piece);
             
             currentPiece = piece;
             currentPiece.drawerWrapper = wrapper;
-            currentPiece.offX = piece.offsetWidth/2;
-            currentPiece.offY = piece.offsetHeight/2;
+            currentPiece.offX = offsetInWrapperX;
+            currentPiece.offY = offsetInWrapperY;
             
             document.addEventListener('mousemove', dragFromDrawer);
             document.addEventListener('mouseup', stopDragFromDrawer);
@@ -1153,6 +1168,13 @@
             wrapper.classList.add('dragging');
             const container = document.getElementById('puzzleContainer');
             const rect = container.getBoundingClientRect();
+            
+            // 應用旋轉（如果有）
+            const rotation = wrapper.currentRotation || 0;
+            if (rotation !== 0) {
+                const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                piece.style.transform = `${baseTransform} rotate(${rotation}deg)`;
+            }
             
             // 使用偏移量，讓拼圖不會跳動
             piece.style.left = (lastX - rect.left - offsetInWrapperX) + 'px';
