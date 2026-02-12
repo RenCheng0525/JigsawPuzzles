@@ -1020,13 +1020,16 @@
             
             // 記錄滑鼠資訊
             const wrapperRect = wrapper.getBoundingClientRect();
+            const tab = wrapper.tab || 0;
+            
+            // piece 有 translate(-tab,-tab)，所以偏移要加回 tab
             mouseStartInfo = {
                 wrapper: wrapper,
                 piece: piece,
                 clientX: e.clientX,
                 clientY: e.clientY,
-                offsetInWrapperX: e.clientX - wrapperRect.left,
-                offsetInWrapperY: e.clientY - wrapperRect.top
+                offsetInWrapperX: e.clientX - wrapperRect.left - tab,
+                offsetInWrapperY: e.clientY - wrapperRect.top - tab
             };
             isMouseDragging = false;
             
@@ -1174,6 +1177,7 @@
             
             const touch = e.touches[0];
             const wrapperRect = wrapper.getBoundingClientRect();
+            const tab = wrapper.tab || 0;
             
             touchStartInfo = {
                 wrapper: wrapper,
@@ -1182,9 +1186,9 @@
                 startY: touch.clientY,
                 lastX: touch.clientX,
                 lastY: touch.clientY,
-                // 記錄手指在 wrapper 內的偏移
-                offsetInWrapperX: touch.clientX - wrapperRect.left,
-                offsetInWrapperY: touch.clientY - wrapperRect.top,
+                // 記錄手指在 wrapper 內的偏移，減去 tab 補償 piece 的 translate
+                offsetInWrapperX: touch.clientX - wrapperRect.left - tab,
+                offsetInWrapperY: touch.clientY - wrapperRect.top - tab,
                 scrollLeft: document.getElementById('puzzleDrawer').scrollLeft,
                 scrollTop: document.getElementById('puzzleDrawer').scrollTop
             };
