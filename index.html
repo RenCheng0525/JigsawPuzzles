@@ -679,10 +679,11 @@
         function initContainerDrag() {
             const container = document.getElementById('puzzleContainer');
             
-            // 滑鼠事件
+            // 滑鼠事件 - 整個區域都可以拖曳
             container.addEventListener('mousedown', function(e) {
-                // 只在點擊拼圖區空白處（非拼圖塊）時拖曳
-                if (!isPlaying || e.target.closest('.puzzle-piece') || e.target.closest('.piece-outline')) return;
+                if (!isPlaying) return;
+                // 如果點到的是拼圖塊，讓拼圖塊的事件處理
+                if (e.target.closest('.puzzle-piece')) return;
                 
                 containerDrag.active = true;
                 containerDrag.startX = e.clientX;
@@ -693,9 +694,10 @@
                 e.preventDefault();
             });
             
-            // 觸控事件
+            // 觸控事件 - 整個區域都可以拖曳
             container.addEventListener('touchstart', function(e) {
-                if (!isPlaying || e.target.closest('.puzzle-piece') || e.target.closest('.piece-outline')) return;
+                if (!isPlaying) return;
+                if (e.target.closest('.puzzle-piece')) return;
                 
                 const touch = e.touches[0];
                 containerDrag.active = true;
