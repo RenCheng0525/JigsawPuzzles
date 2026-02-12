@@ -29,7 +29,12 @@
             position: absolute;
             background-color: #000000;
             box-sizing: border-box;
+            cursor: grab;
             /* 位置由 JS 動態設置 */
+        }
+        
+        .puzzle-container:active {
+            cursor: grabbing;
         }
 
         .puzzle-piece {
@@ -466,6 +471,17 @@
         let drawerPieces = [];
         let audioContext = null;
         let controlsCollapsed = false;
+        
+        // 拼圖區拖曳相關
+        let containerDrag = {
+            active: false,
+            startX: 0,
+            startY: 0,
+            startLeft: 0,
+            startTop: 0
+        };
+        let containerOriginalPos = { left: 0, top: 0 };
+        let containerDragLimit = { x: 0, y: 0 };
 
         // 選擇圖片
         function selectImage() {
@@ -602,9 +618,11 @@
                 const container = document.getElementById('puzzleContainer');
                 const w = parseFloat(container.style.width);
                 const h = parseFloat(container.style.height);
-                const pos = calculateContainerPosition(w, h);
-                container.style.left = pos.left + 'px';
-                container.style.top = pos.top + 'px';
+                const newPos = calculateContainerPosition(w, h);
+                container.style.left = newPos.left + 'px';
+                container.style.top = newPos.top + 'px';
+                // 更新原始位置（重置拖曳）
+                containerOriginalPos = { left: newPos.left, top: newPos.top };
             }
         }
         
@@ -656,6 +674,92 @@
         }, {passive: true});
         
         document.getElementById('previewOverlay').addEventListener('click', hideFullPreview);
+
+        // 拼圖區拖曳功能
+        function initContainerDrag() {
+            const container = document.getElementById('puzzleContainer');
+            
+            // 滑鼠事件
+            container.addEventListener('mousedown', function(e) {
+                // 只在點擊拼圖區空白處（非拼圖塊）時拖曳
+                if (!isPlaying || e.target.closest('.puzzle-piece') || e.target.closest('.piece-outline')) return;
+                
+                containerDrag.active = true;
+                containerDrag.startX = e.clientX;
+                containerDrag.startY = e.clientY;
+                containerDrag.startLeft = parseFloat(container.style.left) || 0;
+                containerDrag.startTop = parseFloat(container.style.top) || 0;
+                container.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            
+            // 觸控事件
+            container.addEventListener('touchstart', function(e) {
+                if (!isPlaying || e.target.closest('.puzzle-piece') || e.target.closest('.piece-outline')) return;
+                
+                const touch = e.touches[0];
+                containerDrag.active = true;
+                containerDrag.startX = touch.clientX;
+                containerDrag.startY = touch.clientY;
+                containerDrag.startLeft = parseFloat(container.style.left) || 0;
+                containerDrag.startTop = parseFloat(container.style.top) || 0;
+            }, {passive: true});
+        }
+        
+        document.addEventListener('mousemove', function(e) {
+            if (!containerDrag.active) return;
+            
+            const container = document.getElementById('puzzleContainer');
+            const dx = e.clientX - containerDrag.startX;
+            const dy = e.clientY - containerDrag.startY;
+            
+            // 限制拖曳範圍
+            let newLeft = containerDrag.startLeft + dx;
+            let newTop = containerDrag.startTop + dy;
+            
+            newLeft = Math.max(containerOriginalPos.left - containerDragLimit.x, 
+                              Math.min(containerOriginalPos.left + containerDragLimit.x, newLeft));
+            newTop = Math.max(containerOriginalPos.top - containerDragLimit.y, 
+                             Math.min(containerOriginalPos.top + containerDragLimit.y, newTop));
+            
+            container.style.left = newLeft + 'px';
+            container.style.top = newTop + 'px';
+        });
+        
+        document.addEventListener('touchmove', function(e) {
+            if (!containerDrag.active) return;
+            
+            const touch = e.touches[0];
+            const container = document.getElementById('puzzleContainer');
+            const dx = touch.clientX - containerDrag.startX;
+            const dy = touch.clientY - containerDrag.startY;
+            
+            // 限制拖曳範圍
+            let newLeft = containerDrag.startLeft + dx;
+            let newTop = containerDrag.startTop + dy;
+            
+            newLeft = Math.max(containerOriginalPos.left - containerDragLimit.x, 
+                              Math.min(containerOriginalPos.left + containerDragLimit.x, newLeft));
+            newTop = Math.max(containerOriginalPos.top - containerDragLimit.y, 
+                             Math.min(containerOriginalPos.top + containerDragLimit.y, newTop));
+            
+            container.style.left = newLeft + 'px';
+            container.style.top = newTop + 'px';
+        }, {passive: true});
+        
+        document.addEventListener('mouseup', function() {
+            if (containerDrag.active) {
+                containerDrag.active = false;
+                document.getElementById('puzzleContainer').style.cursor = '';
+            }
+        });
+        
+        document.addEventListener('touchend', function() {
+            containerDrag.active = false;
+        });
+        
+        // 初始化拖曳事件
+        initContainerDrag();
 
         // 拼圖路徑生成 - 標準版本
         function generateCurvedPath(width, height, edges) {
@@ -956,6 +1060,13 @@
                 container.style.height = size.height + 'px';
                 container.style.left = pos.left + 'px';
                 container.style.top = pos.top + 'px';
+                
+                // 記錄原始位置，設定拖曳範圍（半個拼圖區大小）
+                containerOriginalPos = { left: pos.left, top: pos.top };
+                containerDragLimit = { 
+                    x: (cols / 2) * pw,  // 可左右移動半個拼圖區
+                    y: (rows / 2) * ph   // 可上下移動半個拼圖區
+                };
 
                 const outlines = document.createElement('div');
                 outlines.className = 'outlines-container';
