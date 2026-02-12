@@ -29,12 +29,7 @@
             position: absolute;
             background-color: #000000;
             box-sizing: border-box;
-            cursor: grab;
             /* 位置由 JS 動態設置 */
-        }
-        
-        .puzzle-container:active {
-            cursor: grabbing;
         }
 
         .puzzle-piece {
@@ -677,27 +672,41 @@
 
         // 拼圖區拖曳功能
         function initContainerDrag() {
+            const gameArea = document.getElementById('gameArea');
             const container = document.getElementById('puzzleContainer');
             
-            // 滑鼠事件 - 整個區域都可以拖曳
-            container.addEventListener('mousedown', function(e) {
+            // 滑鼠事件 - 在 game-area 空白處拖曳整個拼圖區
+            gameArea.addEventListener('mousedown', function(e) {
                 if (!isPlaying) return;
-                // 如果點到的是拼圖塊，讓拼圖塊的事件處理
-                if (e.target.closest('.puzzle-piece')) return;
+                // 排除 UI 元素
+                if (e.target.closest('.puzzle-piece') || 
+                    e.target.closest('.drawer-piece-wrapper') ||
+                    e.target.closest('.puzzle-drawer') ||
+                    e.target.closest('.controls-drawer') ||
+                    e.target.closest('.controls-toggle') ||
+                    e.target.closest('.floating-preview') ||
+                    e.target.closest('.show-preview-btn') ||
+                    e.target.closest('.drawer-controls')) return;
                 
                 containerDrag.active = true;
                 containerDrag.startX = e.clientX;
                 containerDrag.startY = e.clientY;
                 containerDrag.startLeft = parseFloat(container.style.left) || 0;
                 containerDrag.startTop = parseFloat(container.style.top) || 0;
-                container.style.cursor = 'grabbing';
                 e.preventDefault();
             });
             
-            // 觸控事件 - 整個區域都可以拖曳
-            container.addEventListener('touchstart', function(e) {
+            // 觸控事件 - 在 game-area 空白處拖曳整個拼圖區
+            gameArea.addEventListener('touchstart', function(e) {
                 if (!isPlaying) return;
-                if (e.target.closest('.puzzle-piece')) return;
+                if (e.target.closest('.puzzle-piece') || 
+                    e.target.closest('.drawer-piece-wrapper') ||
+                    e.target.closest('.puzzle-drawer') ||
+                    e.target.closest('.controls-drawer') ||
+                    e.target.closest('.controls-toggle') ||
+                    e.target.closest('.floating-preview') ||
+                    e.target.closest('.show-preview-btn') ||
+                    e.target.closest('.drawer-controls')) return;
                 
                 const touch = e.touches[0];
                 containerDrag.active = true;
@@ -750,10 +759,7 @@
         }, {passive: true});
         
         document.addEventListener('mouseup', function() {
-            if (containerDrag.active) {
-                containerDrag.active = false;
-                document.getElementById('puzzleContainer').style.cursor = '';
-            }
+            containerDrag.active = false;
         });
         
         document.addEventListener('touchend', function() {
