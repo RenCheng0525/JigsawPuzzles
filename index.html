@@ -143,71 +143,6 @@
         }
 
         /* 浮動預覽圖 */
-        .floating-preview {
-            position: absolute;
-            top: 10px;
-            right: 60px;
-            width: 180px;
-            background: rgba(0,0,0,0.85);
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            z-index: 200;
-            cursor: move;
-            user-select: none;
-            touch-action: none;
-            display: none;
-        }
-        .floating-preview.visible { display: block; }
-        .floating-preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 8px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 8px 8px 0 0;
-            font-size: 11px;
-            color: rgba(255,255,255,0.8);
-        }
-        .floating-preview-close {
-            background: none;
-            border: none;
-            color: rgba(255,255,255,0.8);
-            cursor: pointer;
-            font-size: 14px;
-            padding: 0 2px;
-        }
-        .floating-preview img {
-            width: 100%;
-            display: block;
-            border-radius: 0 0 8px 8px;
-        }
-        .floating-preview-resize {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 18px;
-            height: 18px;
-            cursor: se-resize;
-            background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.3) 50%);
-            border-radius: 0 0 8px 0;
-        }
-        .show-preview-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: rgba(0,0,0,0.7);
-            border: 2px solid rgba(255,255,255,0.3);
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            z-index: 199;
-            display: none;
-        }
-        .show-preview-btn.visible { display: block; }
-
         /* 拼圖抽屜 - 深藍色調與拼圖區區隔 */
         .puzzle-drawer {
             position: absolute;
@@ -422,17 +357,6 @@
         </div>
         <button class="controls-toggle" id="controlsToggle" onclick="toggleControls()">◀</button>
         
-        <!-- 浮動預覽圖 -->
-        <div class="floating-preview" id="floatingPreview">
-            <div class="floating-preview-header">
-                <span>📷 預覽</span>
-                <button class="floating-preview-close" onclick="hidePreview()">✕</button>
-            </div>
-            <img id="previewImg" src="">
-            <div class="floating-preview-resize" id="previewResize"></div>
-        </div>
-        <button class="show-preview-btn" id="showPreviewBtn" onclick="showPreview()">🖼</button>
-        
         <!-- 抽屜控制 -->
         <div class="drawer-count" id="drawerCount">剩餘: 0 塊</div>
         <div class="drawer-controls">
@@ -489,85 +413,6 @@
             document.getElementById('controlsDrawer').classList.toggle('collapsed', controlsCollapsed);
             document.getElementById('controlsToggle').textContent = controlsCollapsed ? '▶' : '◀';
         }
-
-        // 浮動預覽拖曳與縮放
-        let previewDrag = { active: false, x: 0, y: 0 };
-        let previewResize = { active: false, w: 0 };
-
-        function showPreview() {
-            document.getElementById('floatingPreview').classList.add('visible');
-            document.getElementById('showPreviewBtn').classList.remove('visible');
-        }
-        
-        function hidePreview() {
-            document.getElementById('floatingPreview').classList.remove('visible');
-            document.getElementById('showPreviewBtn').classList.add('visible');
-        }
-
-        // 預覽拖曳
-        document.getElementById('floatingPreview').addEventListener('mousedown', function(e) {
-            if (e.target.closest('.floating-preview-close') || e.target.closest('.floating-preview-resize')) return;
-            previewDrag.active = true;
-            const rect = this.getBoundingClientRect();
-            previewDrag.x = e.clientX - rect.left;
-            previewDrag.y = e.clientY - rect.top;
-            e.preventDefault();
-        });
-        
-        document.getElementById('floatingPreview').addEventListener('touchstart', function(e) {
-            if (e.target.closest('.floating-preview-close') || e.target.closest('.floating-preview-resize')) return;
-            previewDrag.active = true;
-            const rect = this.getBoundingClientRect();
-            const t = e.touches[0];
-            previewDrag.x = t.clientX - rect.left;
-            previewDrag.y = t.clientY - rect.top;
-            e.preventDefault();
-        }, {passive: false});
-
-        document.addEventListener('mousemove', function(e) {
-            if (previewDrag.active) {
-                const fp = document.getElementById('floatingPreview');
-                fp.style.left = (e.clientX - previewDrag.x) + 'px';
-                fp.style.top = (e.clientY - previewDrag.y) + 'px';
-                fp.style.right = 'auto';
-            }
-            if (previewResize.active) {
-                const fp = document.getElementById('floatingPreview');
-                const w = Math.max(80, Math.min(300, e.clientX - fp.getBoundingClientRect().left));
-                fp.style.width = w + 'px';
-            }
-        });
-        
-        document.addEventListener('touchmove', function(e) {
-            if (previewDrag.active) {
-                const t = e.touches[0];
-                const fp = document.getElementById('floatingPreview');
-                fp.style.left = (t.clientX - previewDrag.x) + 'px';
-                fp.style.top = (t.clientY - previewDrag.y) + 'px';
-                fp.style.right = 'auto';
-            }
-            if (previewResize.active) {
-                const t = e.touches[0];
-                const fp = document.getElementById('floatingPreview');
-                const w = Math.max(80, Math.min(300, t.clientX - fp.getBoundingClientRect().left));
-                fp.style.width = w + 'px';
-            }
-        }, {passive: false});
-
-        document.addEventListener('mouseup', function() { previewDrag.active = false; previewResize.active = false; });
-        document.addEventListener('touchend', function() { previewDrag.active = false; previewResize.active = false; });
-
-        // 預覽縮放
-        document.getElementById('previewResize').addEventListener('mousedown', function(e) {
-            previewResize.active = true;
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        document.getElementById('previewResize').addEventListener('touchstart', function(e) {
-            previewResize.active = true;
-            e.preventDefault();
-            e.stopPropagation();
-        }, {passive: false});
 
         // 音效
         function playSnapSound() {
@@ -656,7 +501,7 @@
         document.getElementById('gameArea').addEventListener('touchstart', function(e) {
             if (e.target.closest('.drawer-piece-wrapper') || e.target.closest('.drawer-btn') || 
                 e.target.closest('.puzzle-drawer') || e.target.closest('.controls-drawer') ||
-                e.target.closest('.controls-toggle') || e.target.closest('.floating-preview')) return;
+                e.target.closest('.controls-toggle')) return;
             longPressTimer = setTimeout(showFullPreview, 500);
         }, {passive: true});
         
@@ -684,8 +529,6 @@
                     e.target.closest('.puzzle-drawer') ||
                     e.target.closest('.controls-drawer') ||
                     e.target.closest('.controls-toggle') ||
-                    e.target.closest('.floating-preview') ||
-                    e.target.closest('.show-preview-btn') ||
                     e.target.closest('.drawer-controls')) return;
                 
                 containerDrag.active = true;
@@ -704,8 +547,6 @@
                     e.target.closest('.puzzle-drawer') ||
                     e.target.closest('.controls-drawer') ||
                     e.target.closest('.controls-toggle') ||
-                    e.target.closest('.floating-preview') ||
-                    e.target.closest('.show-preview-btn') ||
                     e.target.closest('.drawer-controls')) return;
                 
                 const touch = e.touches[0];
@@ -821,8 +662,6 @@
         function loadImage(src) {
             originalImage = new Image();
             originalImage.onload = function() {
-                document.getElementById('previewImg').src = src;
-                showPreview();
                 startGame();
             };
             originalImage.src = src;
