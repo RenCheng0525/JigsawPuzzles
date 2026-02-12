@@ -56,7 +56,7 @@
             background: rgba(20, 20, 20, 0.95);
             border-right: 2px solid rgba(255, 215, 0, 0.6);
             box-shadow: 2px 0 15px rgba(0,0,0,0.5);
-            z-index: 300;
+            z-index: 2000;
             transition: transform 0.3s ease;
             overflow-y: auto;
             padding: 15px;
@@ -80,7 +80,7 @@
             cursor: pointer;
             font-size: 14px;
             color: white;
-            z-index: 301;
+            z-index: 2001;
             transition: left 0.3s ease;
             box-shadow: 2px 0 10px rgba(0,0,0,0.3);
         }
@@ -156,10 +156,38 @@
             gap: 8px;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         }
+        /* 散亂模式 - 關閉 flex 排列，禁止滾動 */
+        .puzzle-drawer.scatter-mode {
+            display: block;
+            overflow: hidden;
+        }
+        .puzzle-drawer.scatter-mode .drawer-piece-wrapper {
+            position: absolute !important;
+        }
         .puzzle-drawer.drawer-bottom { bottom: 0; left: 0; right: 0; height: 180px; border-top: 2px solid rgba(100, 150, 255, 0.5); }
         .puzzle-drawer.drawer-top { top: 0; left: 0; right: 0; height: 180px; border-bottom: 2px solid rgba(100, 150, 255, 0.5); }
         .puzzle-drawer.drawer-left { top: 0; left: 0; bottom: 0; width: 180px; border-right: 2px solid rgba(100, 150, 255, 0.5); }
         .puzzle-drawer.drawer-right { top: 0; right: 0; bottom: 0; width: 180px; border-left: 2px solid rgba(100, 150, 255, 0.5); }
+        .puzzle-drawer.drawer-none { display: none; }
+        
+        /* Drawer 調整大小的拖曳條（獨立於 drawer 外） */
+        .drawer-resize-handle {
+            position: absolute;
+            background: rgba(25, 35, 55, 0.95);
+            z-index: 150;
+            transition: background 0.2s;
+            display: none;
+        }
+        .drawer-resize-handle.visible { display: block; }
+        .drawer-resize-handle:hover, .drawer-resize-handle.active {
+            background: rgba(60, 100, 180, 0.9);
+        }
+        .drawer-resize-handle.horizontal {
+            left: 0; right: 0; height: 20px; cursor: ns-resize;
+        }
+        .drawer-resize-handle.vertical {
+            width: 20px; cursor: ew-resize;
+        }
         .puzzle-drawer.drawer-none { display: none; }
 
         .drawer-piece-wrapper {
@@ -298,6 +326,9 @@
         }
 
         .piece-outline { pointer-events: none; }
+        .puzzle-piece.dragging {
+            z-index: 1000 !important;
+        }
         .piece-number {
             position: absolute;
             left: 50%;
@@ -353,6 +384,10 @@
                 <input type="checkbox" id="toggleRotation" class="checkbox-input">
                 <label for="toggleRotation" class="checkbox-label">旋轉</label>
             </div>
+            <div class="checkbox-container">
+                <input type="checkbox" id="toggleScatter" class="checkbox-input">
+                <label for="toggleScatter" class="checkbox-label">散亂</label>
+            </div>
             <div style="margin-top:10px; font-size:10px; color:#aaa;">💡 長按空白處查看原圖</div>
         </div>
         <button class="controls-toggle" id="controlsToggle" onclick="toggleControls()">◀</button>
@@ -370,6 +405,8 @@
         
         <!-- 拼圖抽屜 -->
         <div class="puzzle-drawer drawer-bottom" id="puzzleDrawer"></div>
+        <!-- Drawer 大小調整拖曳條（獨立於 drawer 外） -->
+        <div class="drawer-resize-handle horizontal" id="drawerResizeHandle"></div>
     </div>
 
     <div class="preview-overlay" id="previewOverlay">
@@ -385,11 +422,13 @@
         let edges = null;
         let showHint = false;
         let enableRotation = false;
+        let scatterMode = false; // 散亂模式
         let rows, cols;
         let drawerPosition = 'bottom';
         let drawerPieces = [];
         let audioContext = null;
         let controlsCollapsed = false;
+        let drawerPieceZIndex = 1; // 散亂模式中拼圖的 z-index 計數器
         
         // 拼圖區拖曳相關
         let containerDrag = {
@@ -401,6 +440,24 @@
         };
         let containerOriginalPos = { left: 0, top: 0 };
         let containerDragLimit = { x: 0, y: 0 };
+        
+        // Drawer 大小調整相關
+        let drawerResize = {
+            active: false,
+            startPos: 0,
+            startSize: 0
+        };
+        let drawerSize = 180; // 初始大小
+        let pieceWidth = 0, pieceHeight = 0; // 單個拼圖大小（含 tab）
+        
+        // 兩指縮放相關
+        let pinchZoom = {
+            active: false,
+            startDistance: 0,
+            startScale: 1
+        };
+        let containerScale = 1; // 目前縮放比例
+        let baseContainerWidth = 0, baseContainerHeight = 0; // 原始容器大小
 
         // 選擇圖片
         function selectImage() {
@@ -448,10 +505,36 @@
 
         // 抽屜控制
         function setDrawerPosition(pos) {
+            const wasScatterMode = scatterMode;
             drawerPosition = pos;
-            document.getElementById('puzzleDrawer').className = 'puzzle-drawer drawer-' + pos;
+            const drawer = document.getElementById('puzzleDrawer');
+            const handle = document.getElementById('drawerResizeHandle');
+            const gameArea = document.getElementById('gameArea');
+            
+            drawer.className = 'puzzle-drawer drawer-' + pos + (wasScatterMode ? ' scatter-mode' : '');
             document.querySelectorAll('.drawer-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
+            
+            // 更新 resize handle 方向、位置和 drawer 大小（緊貼 drawer 邊緣）
+            if (pos === 'none') {
+                handle.classList.remove('visible');
+            } else if (pos === 'top' || pos === 'bottom') {
+                handle.className = 'drawer-resize-handle horizontal visible';
+                drawer.style.width = '';
+                drawer.style.height = drawerSize + 'px';
+                handle.style.top = (pos === 'bottom') ? (gameArea.offsetHeight - drawerSize - 20) + 'px' : drawerSize + 'px';
+                handle.style.bottom = '';
+                handle.style.left = '0';
+                handle.style.right = '0';
+            } else if (pos === 'left' || pos === 'right') {
+                handle.className = 'drawer-resize-handle vertical visible';
+                drawer.style.height = '';
+                drawer.style.width = drawerSize + 'px';
+                handle.style.left = (pos === 'left') ? drawerSize + 'px' : '';
+                handle.style.right = (pos === 'right') ? (drawerSize + 20) + 'px' : '';
+                handle.style.top = '0';
+                handle.style.bottom = '0';
+            }
             
             // 只更新位置，不改變大小
             if (originalImage && isPlaying) {
@@ -464,6 +547,57 @@
                 // 更新原始位置（重置拖曳）
                 containerOriginalPos = { left: newPos.left, top: newPos.top };
             }
+            
+            // 散亂模式下，切換 drawer 方向時重新排列
+            if (wasScatterMode && pos !== 'none') {
+                repositionScatteredPieces();
+            }
+        }
+        
+        // 重新排列散亂模式的拼圖（讓它們隨機散落在可視區內）
+        function repositionScatteredPieces() {
+            if (!scatterMode || drawerPieces.length === 0) return;
+            
+            const drawer = document.getElementById('puzzleDrawer');
+            const isVerticalDrawer = (drawerPosition === 'left' || drawerPosition === 'right');
+            
+            // drawer 的實際可視尺寸
+            const drawerW = isVerticalDrawer ? drawerSize : drawer.offsetWidth;
+            const drawerH = isVerticalDrawer ? drawer.offsetHeight : drawerSize;
+            
+            // 取得未放置的拼圖
+            const unplacedPieces = drawerPieces.filter(dp => !dp.isPlaced);
+            if (unplacedPieces.length === 0) return;
+            
+            // 隨機放置範圍（留一點邊距，但拼圖可以重疊、可以部分超出）
+            const maxX = Math.max(10, drawerW - 50);
+            const maxY = Math.max(10, drawerH - 50);
+            
+            unplacedPieces.forEach(dp => {
+                const item = dp.drawerItem;
+                // 直接用亂數放置
+                item.style.left = (Math.random() * maxX) + 'px';
+                item.style.top = (Math.random() * maxY) + 'px';
+                item.style.zIndex = drawerPieceZIndex++;
+            });
+        }
+        
+        // 更新 resize handle 位置（當 drawer 大小改變時呼叫，緊貼 drawer 邊緣）
+        function updateResizeHandlePosition() {
+            const handle = document.getElementById('drawerResizeHandle');
+            const gameArea = document.getElementById('gameArea');
+            
+            if (drawerPosition === 'bottom') {
+                handle.style.top = (gameArea.offsetHeight - drawerSize - 20) + 'px';
+            } else if (drawerPosition === 'top') {
+                handle.style.top = drawerSize + 'px';
+            } else if (drawerPosition === 'left') {
+                handle.style.left = drawerSize + 'px';
+                handle.style.right = '';
+            } else if (drawerPosition === 'right') {
+                handle.style.right = (drawerSize + 20) + 'px';
+                handle.style.left = '';
+            }
         }
         
         function updateDrawerCount() {
@@ -472,6 +606,14 @@
         
         function shuffleDrawer() {
             const drawer = document.getElementById('puzzleDrawer');
+            
+            // 散亂模式：重新隨機放置所有未放置的拼圖
+            if (scatterMode) {
+                repositionScatteredPieces();
+                return;
+            }
+            
+            // 非散亂模式：重新排列 DOM 順序
             const items = Array.from(drawer.children);
             for (let i = items.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -499,9 +641,14 @@
         }
         
         document.getElementById('gameArea').addEventListener('touchstart', function(e) {
+            // 兩指以上不觸發長按預覽
+            if (e.touches.length > 1) {
+                clearTimeout(longPressTimer);
+                return;
+            }
             if (e.target.closest('.drawer-piece-wrapper') || e.target.closest('.drawer-btn') || 
                 e.target.closest('.puzzle-drawer') || e.target.closest('.controls-drawer') ||
-                e.target.closest('.controls-toggle')) return;
+                e.target.closest('.controls-toggle') || e.target.closest('.drawer-resize-handle')) return;
             longPressTimer = setTimeout(showFullPreview, 500);
         }, {passive: true});
         
@@ -509,7 +656,12 @@
             clearTimeout(longPressTimer); hideFullPreview();
         }, {passive: true});
         
-        document.getElementById('gameArea').addEventListener('touchmove', function() {
+        document.getElementById('gameArea').addEventListener('touchmove', function(e) {
+            // 兩指縮放時也取消長按
+            if (e.touches.length > 1) {
+                clearTimeout(longPressTimer);
+                hideFullPreview();
+            }
             clearTimeout(longPressTimer);
         }, {passive: true});
         
@@ -601,14 +753,207 @@
         
         document.addEventListener('mouseup', function() {
             containerDrag.active = false;
+            if (drawerResize.active) {
+                drawerResize.active = false;
+                document.getElementById('drawerResizeHandle').classList.remove('active');
+            }
         });
         
         document.addEventListener('touchend', function() {
             containerDrag.active = false;
+            if (drawerResize.active) {
+                drawerResize.active = false;
+                document.getElementById('drawerResizeHandle').classList.remove('active');
+            }
         });
         
         // 初始化拖曳事件
         initContainerDrag();
+        
+        // Drawer 大小調整功能
+        function initDrawerResize() {
+            const handle = document.getElementById('drawerResizeHandle');
+            const drawer = document.getElementById('puzzleDrawer');
+            const gameArea = document.getElementById('gameArea');
+            
+            handle.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                drawerResize.active = true;
+                handle.classList.add('active');
+                
+                if (drawerPosition === 'top' || drawerPosition === 'bottom') {
+                    drawerResize.startPos = e.clientY;
+                    drawerResize.startSize = drawer.offsetHeight;
+                } else {
+                    drawerResize.startPos = e.clientX;
+                    drawerResize.startSize = drawer.offsetWidth;
+                }
+            });
+            
+            handle.addEventListener('touchstart', function(e) {
+                e.stopPropagation();
+                drawerResize.active = true;
+                handle.classList.add('active');
+                const touch = e.touches[0];
+                
+                if (drawerPosition === 'top' || drawerPosition === 'bottom') {
+                    drawerResize.startPos = touch.clientY;
+                    drawerResize.startSize = drawer.offsetHeight;
+                } else {
+                    drawerResize.startPos = touch.clientX;
+                    drawerResize.startSize = drawer.offsetWidth;
+                }
+            }, {passive: true});
+        }
+        
+        document.addEventListener('mousemove', function(e) {
+            if (!drawerResize.active) return;
+            
+            const gameArea = document.getElementById('gameArea');
+            const drawer = document.getElementById('puzzleDrawer');
+            let newSize;
+            
+            if (drawerPosition === 'bottom') {
+                newSize = drawerResize.startSize - (e.clientY - drawerResize.startPos);
+            } else if (drawerPosition === 'top') {
+                newSize = drawerResize.startSize + (e.clientY - drawerResize.startPos);
+            } else if (drawerPosition === 'right') {
+                newSize = drawerResize.startSize - (e.clientX - drawerResize.startPos);
+            } else if (drawerPosition === 'left') {
+                newSize = drawerResize.startSize + (e.clientX - drawerResize.startPos);
+            }
+            
+            // 限制範圍：最小容納一個拼圖，最大 1/2 螢幕
+            const isVertical = (drawerPosition === 'top' || drawerPosition === 'bottom');
+            const maxDimension = isVertical ? gameArea.offsetHeight : gameArea.offsetWidth;
+            const minSize = isVertical ? (pieceHeight || 100) : (pieceWidth || 100);
+            const maxSize = maxDimension / 2;
+            
+            newSize = Math.max(minSize, Math.min(maxSize, newSize));
+            drawerSize = newSize;
+            
+            if (isVertical) {
+                drawer.style.height = newSize + 'px';
+            } else {
+                drawer.style.width = newSize + 'px';
+            }
+            
+            // 更新 resize handle 位置
+            updateResizeHandlePosition();
+            
+            // 更新拼圖區位置
+            if (originalImage && isPlaying) {
+                const container = document.getElementById('puzzleContainer');
+                const w = parseFloat(container.style.width);
+                const h = parseFloat(container.style.height);
+                const newPos = calculateContainerPosition(w, h);
+                container.style.left = newPos.left + 'px';
+                container.style.top = newPos.top + 'px';
+                containerOriginalPos = { left: newPos.left, top: newPos.top };
+            }
+        });
+        
+        document.addEventListener('touchmove', function(e) {
+            if (!drawerResize.active) return;
+            
+            const touch = e.touches[0];
+            const gameArea = document.getElementById('gameArea');
+            const drawer = document.getElementById('puzzleDrawer');
+            let newSize;
+            
+            if (drawerPosition === 'bottom') {
+                newSize = drawerResize.startSize - (touch.clientY - drawerResize.startPos);
+            } else if (drawerPosition === 'top') {
+                newSize = drawerResize.startSize + (touch.clientY - drawerResize.startPos);
+            } else if (drawerPosition === 'right') {
+                newSize = drawerResize.startSize - (touch.clientX - drawerResize.startPos);
+            } else if (drawerPosition === 'left') {
+                newSize = drawerResize.startSize + (touch.clientX - drawerResize.startPos);
+            }
+            
+            // 限制範圍：最小容納一個拼圖，最大 1/2 螢幕
+            const isVertical2 = (drawerPosition === 'top' || drawerPosition === 'bottom');
+            const maxDimension2 = isVertical2 ? gameArea.offsetHeight : gameArea.offsetWidth;
+            const minSize2 = isVertical2 ? (pieceHeight || 100) : (pieceWidth || 100);
+            const maxSize2 = maxDimension2 / 2;
+            
+            newSize = Math.max(minSize2, Math.min(maxSize2, newSize));
+            drawerSize = newSize;
+            
+            if (isVertical2) {
+                drawer.style.height = newSize + 'px';
+            } else {
+                drawer.style.width = newSize + 'px';
+            }
+            
+            // 更新 resize handle 位置
+            updateResizeHandlePosition();
+            
+            // 更新拼圖區位置
+            if (originalImage && isPlaying) {
+                const container = document.getElementById('puzzleContainer');
+                const w = parseFloat(container.style.width);
+                const h = parseFloat(container.style.height);
+                const newPos = calculateContainerPosition(w, h);
+                container.style.left = newPos.left + 'px';
+                container.style.top = newPos.top + 'px';
+                containerOriginalPos = { left: newPos.left, top: newPos.top };
+            }
+        }, {passive: true});
+        
+        // 初始化 drawer resize
+        initDrawerResize();
+        
+        // 兩指縮放功能
+        function getDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        function initPinchZoom() {
+            const gameArea = document.getElementById('gameArea');
+            
+            gameArea.addEventListener('touchstart', function(e) {
+                if (!isPlaying) return;
+                if (e.touches.length === 2) {
+                    // 排除 UI 元素上的兩指操作
+                    if (e.target.closest('.puzzle-drawer') ||
+                        e.target.closest('.controls-drawer') ||
+                        e.target.closest('.drawer-controls') ||
+                        e.target.closest('.drawer-resize-handle')) return;
+                    
+                    pinchZoom.active = true;
+                    pinchZoom.startDistance = getDistance(e.touches);
+                    pinchZoom.startScale = containerScale;
+                    e.preventDefault();
+                }
+            }, {passive: false});
+            
+            gameArea.addEventListener('touchmove', function(e) {
+                if (!pinchZoom.active || e.touches.length !== 2) return;
+                
+                const currentDistance = getDistance(e.touches);
+                const scale = (currentDistance / pinchZoom.startDistance) * pinchZoom.startScale;
+                
+                // 限制縮放範圍：0.5 ~ 2.0
+                containerScale = Math.max(0.5, Math.min(2.0, scale));
+                
+                const container = document.getElementById('puzzleContainer');
+                container.style.transform = `scale(${containerScale})`;
+                
+                e.preventDefault();
+            }, {passive: false});
+            
+            gameArea.addEventListener('touchend', function(e) {
+                if (e.touches.length < 2) {
+                    pinchZoom.active = false;
+                }
+            });
+        }
+        
+        initPinchZoom();
 
         // 拼圖路徑生成 - 標準版本
         function generateCurvedPath(width, height, edges) {
@@ -674,7 +1019,6 @@
             const totalWidth = gameArea.offsetWidth;
             const totalHeight = gameArea.offsetHeight;
             
-            const drawerSize = 180;
             const tabMargin = 10; // 預留 tab 突出空間（最小化）
             
             // 同時預留上下和左右的 drawer 空間，取最小可用區域
@@ -701,8 +1045,6 @@
             const gameArea = document.querySelector('.game-area');
             const totalWidth = gameArea.offsetWidth;
             const totalHeight = gameArea.offsetHeight;
-            
-            const drawerSize = 180;
             
             // 計算可用區域的邊界
             let left = 0, top = 0;
@@ -890,8 +1232,18 @@
                 
                 const container = document.getElementById('puzzleContainer');
                 const drawer = document.getElementById('puzzleDrawer');
-                container.innerHTML = ''; drawer.innerHTML = '';
+                container.innerHTML = '';
+                drawer.innerHTML = '';
                 pieces = []; drawerPieces = []; isPlaying = true;
+                drawerPieceZIndex = 1; // 重置 z-index 計數器
+                
+                // 讀取散亂模式設定
+                scatterMode = document.getElementById('toggleScatter').checked;
+                if (scatterMode) {
+                    drawer.classList.add('scatter-mode');
+                } else {
+                    drawer.classList.remove('scatter-mode');
+                }
 
                 const size = calculateContainerSize();
                 const count = parseInt(document.getElementById('pieceCount').value);
@@ -901,12 +1253,23 @@
                 const ph = size.height / rows;
                 const tab = Math.min(pw, ph) * 0.15;
                 
+                // 儲存拼圖大小（含 tab 和 padding）供 drawer resize 使用
+                pieceWidth = pw + 2 * tab + 20;  // 加上 padding/margin
+                pieceHeight = ph + 2 * tab + 20;
+                
                 const pos = calculateContainerPosition(size.width, size.height);
 
                 container.style.width = size.width + 'px';
                 container.style.height = size.height + 'px';
                 container.style.left = pos.left + 'px';
                 container.style.top = pos.top + 'px';
+                container.style.transform = 'scale(1)';
+                container.style.transformOrigin = 'center center';
+                
+                // 儲存原始容器大小供縮放使用
+                baseContainerWidth = size.width;
+                baseContainerHeight = size.height;
+                containerScale = 1;
                 
                 // 記錄原始位置，設定拖曳範圍（半個拼圖區大小）
                 containerOriginalPos = { left: pos.left, top: pos.top };
@@ -914,6 +1277,35 @@
                     x: (cols / 2) * pw,  // 可左右移動半個拼圖區
                     y: (rows / 2) * ph   // 可上下移動半個拼圖區
                 };
+                
+                // 初始化 resize handle 位置（緊貼 drawer 邊緣）
+                const handle = document.getElementById('drawerResizeHandle');
+                const gameArea = document.getElementById('gameArea');
+                if (drawerPosition === 'bottom') {
+                    handle.className = 'drawer-resize-handle horizontal visible';
+                    handle.style.top = (gameArea.offsetHeight - drawerSize - 20) + 'px';
+                    handle.style.left = '0';
+                    handle.style.right = '0';
+                    handle.style.bottom = '';
+                } else if (drawerPosition === 'top') {
+                    handle.className = 'drawer-resize-handle horizontal visible';
+                    handle.style.top = drawerSize + 'px';
+                    handle.style.left = '0';
+                    handle.style.right = '0';
+                    handle.style.bottom = '';
+                } else if (drawerPosition === 'left') {
+                    handle.className = 'drawer-resize-handle vertical visible';
+                    handle.style.left = drawerSize + 'px';
+                    handle.style.right = '';
+                    handle.style.top = '0';
+                    handle.style.bottom = '0';
+                } else if (drawerPosition === 'right') {
+                    handle.className = 'drawer-resize-handle vertical visible';
+                    handle.style.right = (drawerSize + 20) + 'px';
+                    handle.style.left = '';
+                    handle.style.top = '0';
+                    handle.style.bottom = '0';
+                }
 
                 const outlines = document.createElement('div');
                 outlines.className = 'outlines-container';
@@ -954,12 +1346,43 @@
                     pieces.push(piece);
                 });
                 
+                // 散亂模式：使用分散排列
+                if (scatterMode) {
+                    repositionScatteredPieces();
+                }
+                
                 updateDrawerCount();
                 
                 await updateProgress(100, '完成！');
                 setTimeout(() => progressOverlay.remove(), 300);
             })();
         }
+        
+        // 切換散亂模式
+        function toggleScatterMode() {
+            if (!isPlaying || drawerPieces.length === 0) return;
+            
+            scatterMode = document.getElementById('toggleScatter').checked;
+            const drawer = document.getElementById('puzzleDrawer');
+            
+            if (scatterMode) {
+                drawer.classList.add('scatter-mode');
+                repositionScatteredPieces();
+            } else {
+                drawer.classList.remove('scatter-mode');
+                // 移除所有位置樣式，恢復 flex 排列
+                drawerPieces.forEach(dp => {
+                    if (!dp.isPlaced) {
+                        dp.drawerItem.style.left = '';
+                        dp.drawerItem.style.top = '';
+                        dp.drawerItem.style.zIndex = '';
+                    }
+                });
+            }
+        }
+        
+        // 監聽散亂 checkbox 變化
+        document.getElementById('toggleScatter').addEventListener('change', toggleScatterMode);
 
         // 從抽屜拖曳 (滑鼠) - 加入延遲判斷，短按顯示提示，長按才拖曳
         let mouseStartInfo = null;
@@ -973,6 +1396,11 @@
             const wrapper = this, piece = wrapper.pieceRef;
             if (!piece || piece.isPlaced) return;
             
+            // 散亂模式：點擊時提升 z-index
+            if (scatterMode) {
+                wrapper.style.zIndex = drawerPieceZIndex++;
+            }
+            
             // 顯示編號提示
             showDrawerHint(wrapper);
             
@@ -980,14 +1408,17 @@
             const wrapperRect = wrapper.getBoundingClientRect();
             const tab = wrapper.tab || 0;
             
-            // piece 有 translate(-tab,-tab)，所以偏移要加回 tab
+            // piece 有 translate(-tab,-tab)，所以偏移要加回 tab（用於 container 內定位）
+            // wrapper 偏移不需要減 tab（用於 drawer 內定位）
             mouseStartInfo = {
                 wrapper: wrapper,
                 piece: piece,
                 clientX: e.clientX,
                 clientY: e.clientY,
                 offsetInWrapperX: e.clientX - wrapperRect.left - tab,
-                offsetInWrapperY: e.clientY - wrapperRect.top - tab
+                offsetInWrapperY: e.clientY - wrapperRect.top - tab,
+                wrapperOffsetX: e.clientX - wrapperRect.left,
+                wrapperOffsetY: e.clientY - wrapperRect.top
             };
             isMouseDragging = false;
             
@@ -1012,8 +1443,14 @@
             // 如果已經在拖曳，移動拼圖
             if (isMouseDragging && currentPiece) {
                 const rect = document.getElementById('puzzleContainer').getBoundingClientRect();
-                currentPiece.style.left = (e.clientX - rect.left - currentPiece.offX) + 'px';
-                currentPiece.style.top = (e.clientY - rect.top - currentPiece.offY) + 'px';
+                // 手指在 container 內的位置（考慮縮放）
+                const posInContainer = {
+                    x: (e.clientX - rect.left) / containerScale,
+                    y: (e.clientY - rect.top) / containerScale
+                };
+                // 拼圖位置 = 手指位置 - 偏移（偏移已經在 startActualMouseDrag 中計算好了）
+                currentPiece.style.left = (posInContainer.x - currentPiece.offX) + 'px';
+                currentPiece.style.top = (posInContainer.y - currentPiece.offY) + 'px';
             }
         }
         
@@ -1039,16 +1476,31 @@
             const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
             piece.style.transform = baseTransform;
             
-            piece.style.left = (clientX - rect.left - offsetInWrapperX) + 'px';
-            piece.style.top = (clientY - rect.top - offsetInWrapperY) + 'px';
+            // 手指在 container 內的位置（考慮縮放）
+            const posInContainer = {
+                x: (clientX - rect.left) / containerScale,
+                y: (clientY - rect.top) / containerScale
+            };
+            
+            // 計算偏移：drawer 中的偏移需要根據拼圖大小比例調整
+            // drawer 中拼圖大小 vs container 中拼圖大小的比例
+            // 由於 piece 本身大小不變，只是 container 縮放了，所以偏移不需要額外調整
+            const offsetX = offsetInWrapperX;
+            const offsetY = offsetInWrapperY;
+            
+            piece.style.left = (posInContainer.x - offsetX) + 'px';
+            piece.style.top = (posInContainer.y - offsetY) + 'px';
             piece.style.zIndex = '1000';
             piece.classList.add('dragging');
             container.appendChild(piece);
             
+            // 提升 container z-index 讓拼圖顯示在 drawer 上方
+            container.style.zIndex = '1000';
+            
             currentPiece = piece;
             currentPiece.drawerWrapper = wrapper;
-            currentPiece.offX = offsetInWrapperX;
-            currentPiece.offY = offsetInWrapperY;
+            currentPiece.offX = offsetX;
+            currentPiece.offY = offsetY;
         }
         
         function handleMouseUp() {
@@ -1057,6 +1509,9 @@
             
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
+            
+            // 恢復 container z-index
+            document.getElementById('puzzleContainer').style.zIndex = '';
             
             if (!isMouseDragging) {
                 // 只是短按，不需要處理拖曳
@@ -1094,17 +1549,38 @@
                 updateDrawerCount();
                 checkWin();
             } else {
-                // 拖曳失敗，從 container 移除 piece
+                // 拖曳失敗 - 檢查是否在 drawer 區內（散亂模式下可重新定位）
+                const drawer = document.getElementById('puzzleDrawer');
+                const drawerRect = drawer.getBoundingClientRect();
+                const mouseX = mouseStartInfo.clientX;
+                const mouseY = mouseStartInfo.clientY;
+                
+                // 從 container 移除 piece
                 document.getElementById('puzzleContainer').removeChild(piece);
                 // 重置 piece 的旋轉（保持 drawer 中的旋轉狀態）
                 const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
                 piece.style.transform = baseTransform;
+                
+                // 散亂模式且在 drawer 區內 - 移動到新位置
+                if (scatterMode && 
+                    mouseX >= drawerRect.left && mouseX <= drawerRect.right &&
+                    mouseY >= drawerRect.top && mouseY <= drawerRect.bottom) {
+                    
+                    // 使用 wrapper 偏移（不含 tab 補償），讓放下位置與拖曳時一致
+                    const offsetX = mouseStartInfo.wrapperOffsetX || piece.drawerWrapper.offsetWidth / 2;
+                    const offsetY = mouseStartInfo.wrapperOffsetY || piece.drawerWrapper.offsetHeight / 2;
+                    const newX = mouseX - drawerRect.left - offsetX;
+                    const newY = mouseY - drawerRect.top - offsetY;
+                    piece.drawerWrapper.style.left = Math.max(0, newX) + 'px';
+                    piece.drawerWrapper.style.top = Math.max(0, newY) + 'px';
+                    piece.drawerWrapper.style.zIndex = drawerPieceZIndex++;
+                }
+                
                 // 顯示 drawer 中的預覽圖
                 if (piece.drawerWrapper.pieceDiv) {
                     piece.drawerWrapper.pieceDiv.style.visibility = 'visible';
                 }
                 piece.drawerWrapper.classList.remove('dragging');
-                if (navigator.vibrate) navigator.vibrate([30,20,30]);
             }
             
             currentPiece = null;
@@ -1130,6 +1606,11 @@
             const piece = wrapper.pieceRef;
             if (!piece || piece.isPlaced) return;
             
+            // 散亂模式：點擊時提升 z-index
+            if (scatterMode) {
+                wrapper.style.zIndex = drawerPieceZIndex++;
+            }
+            
             // 顯示編號提示
             showDrawerHint(wrapper);
             
@@ -1147,6 +1628,9 @@
                 // 記錄手指在 wrapper 內的偏移，減去 tab 補償 piece 的 translate
                 offsetInWrapperX: touch.clientX - wrapperRect.left - tab,
                 offsetInWrapperY: touch.clientY - wrapperRect.top - tab,
+                // wrapper 偏移不含 tab（用於 drawer 內定位）
+                wrapperOffsetX: touch.clientX - wrapperRect.left,
+                wrapperOffsetY: touch.clientY - wrapperRect.top,
                 scrollLeft: document.getElementById('puzzleDrawer').scrollLeft,
                 scrollTop: document.getElementById('puzzleDrawer').scrollTop
             };
@@ -1184,8 +1668,13 @@
                 // 正在拖曳拼圖
                 e.preventDefault();
                 const rect = document.getElementById('puzzleContainer').getBoundingClientRect();
-                currentPiece.style.left = (touch.clientX - rect.left - currentPiece.offX) + 'px';
-                currentPiece.style.top = (touch.clientY - rect.top - currentPiece.offY) + 'px';
+                // 手指在 container 內的位置（考慮縮放）
+                const posInContainer = {
+                    x: (touch.clientX - rect.left) / containerScale,
+                    y: (touch.clientY - rect.top) / containerScale
+                };
+                currentPiece.style.left = (posInContainer.x - currentPiece.offX) + 'px';
+                currentPiece.style.top = (posInContainer.y - currentPiece.offY) + 'px';
             } else {
                 // 檢查是否為滾動意圖
                 if (Math.abs(dx) > SCROLL_THRESHOLD || Math.abs(dy) > SCROLL_THRESHOLD) {
@@ -1218,18 +1707,29 @@
             const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
             piece.style.transform = baseTransform;
             
-            // 使用偏移量，讓拼圖不會跳動
-            piece.style.left = (lastX - rect.left - offsetInWrapperX) + 'px';
-            piece.style.top = (lastY - rect.top - offsetInWrapperY) + 'px';
+            // 手指在 container 內的位置（考慮縮放）
+            const posInContainer = {
+                x: (lastX - rect.left) / containerScale,
+                y: (lastY - rect.top) / containerScale
+            };
+            
+            const offsetX = offsetInWrapperX;
+            const offsetY = offsetInWrapperY;
+            
+            piece.style.left = (posInContainer.x - offsetX) + 'px';
+            piece.style.top = (posInContainer.y - offsetY) + 'px';
             piece.style.zIndex = '1000';
             piece.classList.add('dragging');
             container.appendChild(piece);
             
+            // 提升 container z-index 讓拼圖顯示在 drawer 上方
+            container.style.zIndex = '1000';
+            
             currentPiece = piece;
             currentPiece.drawerWrapper = wrapper;
             // 保存偏移量供移動時使用
-            currentPiece.offX = offsetInWrapperX;
-            currentPiece.offY = offsetInWrapperY;
+            currentPiece.offX = offsetX;
+            currentPiece.offY = offsetY;
             
             if (navigator.vibrate) navigator.vibrate(10);
         }
@@ -1240,6 +1740,9 @@
             
             document.removeEventListener('touchmove', handleDrawerTouchMove);
             document.removeEventListener('touchend', handleDrawerTouchEnd);
+            
+            // 恢復 container z-index
+            document.getElementById('puzzleContainer').style.zIndex = '';
             
             if (!isDraggingFromDrawer) {
                 touchStartInfo = null;
@@ -1276,17 +1779,38 @@
                 updateDrawerCount();
                 checkWin();
             } else {
-                // 拖曳失敗，從 container 移除 piece
+                // 拖曳失敗 - 檢查是否在 drawer 區內（散亂模式下可重新定位）
+                const drawer = document.getElementById('puzzleDrawer');
+                const drawerRect = drawer.getBoundingClientRect();
+                const touchX = touchStartInfo.lastX;
+                const touchY = touchStartInfo.lastY;
+                
+                // 從 container 移除 piece
                 document.getElementById('puzzleContainer').removeChild(piece);
                 // 重置 piece 的旋轉（保持 drawer 中的旋轉狀態）
                 const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
                 piece.style.transform = baseTransform;
+                
+                // 散亂模式且在 drawer 區內 - 移動到新位置
+                if (scatterMode && 
+                    touchX >= drawerRect.left && touchX <= drawerRect.right &&
+                    touchY >= drawerRect.top && touchY <= drawerRect.bottom) {
+                    
+                    // 使用 wrapper 偏移（不含 tab 補償），讓放下位置與拖曳時一致
+                    const offsetX = touchStartInfo.wrapperOffsetX || piece.drawerWrapper.offsetWidth / 2;
+                    const offsetY = touchStartInfo.wrapperOffsetY || piece.drawerWrapper.offsetHeight / 2;
+                    const newX = touchX - drawerRect.left - offsetX;
+                    const newY = touchY - drawerRect.top - offsetY;
+                    piece.drawerWrapper.style.left = Math.max(0, newX) + 'px';
+                    piece.drawerWrapper.style.top = Math.max(0, newY) + 'px';
+                    piece.drawerWrapper.style.zIndex = drawerPieceZIndex++;
+                }
+                
                 // 顯示 drawer 中的預覽圖
                 if (piece.drawerWrapper.pieceDiv) {
                     piece.drawerWrapper.pieceDiv.style.visibility = 'visible';
                 }
                 piece.drawerWrapper.classList.remove('dragging');
-                if (navigator.vibrate) navigator.vibrate([30,20,30]);
             }
             
             currentPiece = null;
