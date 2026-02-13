@@ -3165,20 +3165,44 @@
                             `;
                             dp.drawerItem.style.display = 'none';
                         } else {
-                            dp.piece.style.transition = 'all 0.4s';
-                            dp.piece.style.left = correctX + 'px';
-                            dp.piece.style.top = correctY + 'px';
-                            // 重置旋轉角度
-                            dp.piece.style.transform = dp.piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                            // 托盤模式：需要用基礎容器大小重新生成 piece 樣式
+                            const basePw = baseContainerWidth / cols;
+                            const basePh = baseContainerHeight / rows;
+                            const baseTab = Math.min(basePw, basePh) * 0.15;
+                            const baseSize = { width: baseContainerWidth, height: baseContainerHeight };
+                            const baseBgX = -(pieceCol * basePw) + baseTab;
+                            const baseBgY = -(pieceRow * basePh) + baseTab;
+                            const basePath = generatePiecePath(basePw, basePh, dp.piece.edges);
+                            const baseActualW = basePw + 2 * baseTab;
+                            const baseActualH = basePh + 2 * baseTab;
+                            const baseCorrectX = pieceCol * basePw;
+                            const baseCorrectY = pieceRow * basePh;
+                            
+                            dp.piece.style.cssText = `
+                                width: ${baseActualW}px;
+                                height: ${baseActualH}px;
+                                background-image: url(${originalImage.src});
+                                background-size: ${baseSize.width}px ${baseSize.height}px;
+                                background-position: ${baseBgX}px ${baseBgY}px;
+                                background-repeat: no-repeat;
+                                clip-path: path('${basePath}');
+                                -webkit-clip-path: path('${basePath}');
+                                position: absolute;
+                                transform: translate(-${baseTab}px, -${baseTab}px);
+                                left: ${baseCorrectX}px;
+                                top: ${baseCorrectY}px;
+                                transition: all 0.4s;
+                            `;
+                            dp.piece.correctX = baseCorrectX;
+                            dp.piece.correctY = baseCorrectY;
+                            dp.drawerItem.classList.add('placed');
+                            dp.drawerItem.style.display = 'none';
                         }
                         
-                        dp.piece.correctX = correctX;
-                        dp.piece.correctY = correctY;
                         dp.piece.currentRotation = 0;
                         dp.piece.isPlaced = true; 
                         dp.isPlaced = true;
                         if (dp.piece.parentElement !== container) container.appendChild(dp.piece);
-                        dp.drawerItem.classList.add('placed');
                         updateDrawerCount();
                     }, i * 80);
                 }
