@@ -3499,56 +3499,66 @@
                         // 更新虛線邊框
                         showScatterBorder();
                         
-                        // 縮放拼圖大小
+                        // 使用 updateScatterPiecesScale 的方式縮放拼圖
                         const scaleRatio = saveData.containerScale; // 從 1 縮放到目標值
+                        
                         drawerPieces.forEach(dp => {
                             if (dp.isPlaced) return;
                             const wrapper = dp.drawerItem;
                             if (!wrapper) return;
                             
-                            // 更新 wrapper 大小
-                            const wrapperW = parseFloat(wrapper.style.width) * scaleRatio;
-                            const wrapperH = parseFloat(wrapper.style.height) * scaleRatio;
-                            wrapper.style.width = wrapperW + 'px';
-                            wrapper.style.height = wrapperH + 'px';
+                            const wrapperW = parseFloat(wrapper.style.width);
+                            const wrapperH = parseFloat(wrapper.style.height);
+                            
+                            // 縮放大小
+                            const newW = wrapperW * scaleRatio;
+                            const newH = wrapperH * scaleRatio;
+                            
+                            wrapper.style.width = newW + 'px';
+                            wrapper.style.height = newH + 'px';
                             
                             // 更新內部尺寸
-                            wrapper.pw = (wrapper.pw || baseContainerWidth / cols) * scaleRatio;
-                            wrapper.ph = (wrapper.ph || baseContainerHeight / rows) * scaleRatio;
-                            wrapper.tab = (wrapper.tab || Math.min(wrapper.pw, wrapper.ph) * 0.15) * scaleRatio;
+                            const basePw = baseContainerWidth / cols;
+                            const basePh = baseContainerHeight / rows;
+                            const baseTab = Math.min(basePw, basePh) * 0.15;
+                            
+                            const pw = basePw * scaleRatio;
+                            const ph = basePh * scaleRatio;
+                            const tab = baseTab * scaleRatio;
+                            wrapper.pw = pw;
+                            wrapper.ph = ph;
+                            wrapper.tab = tab;
                             
                             // 更新 pieceDiv
                             const div = wrapper.pieceDiv;
                             if (div) {
-                                const pw = wrapper.pw;
-                                const ph = wrapper.ph;
-                                const tab = wrapper.tab;
                                 const pieceRow = Math.floor((dp.piece.pieceNumber - 1) / cols);
                                 const pieceCol = (dp.piece.pieceNumber - 1) % cols;
                                 const size = { width: pw * cols, height: ph * rows };
                                 const bgX = -(pieceCol * pw) + tab;
                                 const bgY = -(pieceRow * ph) + tab;
                                 const path = generatePiecePath(pw, ph, dp.piece.edges);
+                                const rotation = wrapper.currentRotation || 0;
                                 
-                                div.style.width = wrapperW + 'px';
-                                div.style.height = wrapperH + 'px';
+                                div.style.width = newW + 'px';
+                                div.style.height = newH + 'px';
                                 div.style.backgroundSize = `${size.width}px ${size.height}px`;
                                 div.style.backgroundPosition = `${bgX}px ${bgY}px`;
                                 div.style.clipPath = `path('${path}')`;
                                 div.style.webkitClipPath = `path('${path}')`;
+                                div.style.transformOrigin = 'center center';
+                                div.style.transform = rotation !== 0 ? `rotate(${rotation}deg)` : '';
                             }
                             
-                            // 更新 SVG 邊框
+                            // 更新 SVG 邊框（與 updateScatterPiecesScale 一致）
                             const svg = wrapper.pieceSvg;
                             if (svg) {
-                                const pw = wrapper.pw;
-                                const ph = wrapper.ph;
                                 const borderPath = generateCurvedPath(pw, ph, dp.piece.edges);
-                                svg.setAttribute('width', wrapperW);
-                                svg.setAttribute('height', wrapperH);
-                                svg.setAttribute('viewBox', `0 0 ${wrapperW} ${wrapperH}`);
-                                const pathEl = svg.querySelector('path');
-                                if (pathEl) pathEl.setAttribute('d', borderPath);
+                                svg.setAttribute('width', newW);
+                                svg.setAttribute('height', newH);
+                                svg.innerHTML = `<path d="${borderPath}" fill="none" stroke="#000" stroke-width="1"/>`;
+                                const rotation = wrapper.currentRotation || 0;
+                                svg.style.transform = rotation !== 0 ? `rotate(${rotation}deg)` : '';
                             }
                         });
                     }
