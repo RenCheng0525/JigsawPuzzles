@@ -19,7 +19,7 @@
         .game-area {
             width: 100%;
             height: 100%;
-            background-color: #000000;
+            background-color: #1a1a2e;
             position: relative;
             overflow: hidden;
             box-sizing: border-box;
@@ -27,7 +27,7 @@
 
         .puzzle-container {
             position: absolute;
-            background-color: #000000;
+            background-color: #1a1a2e;
             box-sizing: border-box;
             /* 位置由 JS 動態設置 */
         }
@@ -259,6 +259,61 @@
         .drawer-btn.shuffle-btn { background: rgba(0,0,0,0.7); }
         .drawer-btn.shuffle-btn:hover { background: rgba(0,0,0,0.9); }
         
+        /* 顏色選擇器 */
+        .color-picker-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        .color-picker-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+            cursor: pointer;
+            background: #1a1a2e;
+            transition: all 0.2s;
+        }
+        .color-picker-btn:hover {
+            transform: scale(1.1);
+            border-color: white;
+        }
+        .color-picker-popup {
+            display: none;
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            border-radius: 20px;
+            padding: 8px;
+            gap: 6px;
+            flex-wrap: wrap;
+            width: 90px;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .color-picker-popup.show {
+            display: flex;
+        }
+        .color-option {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .color-option:hover {
+            transform: scale(1.15);
+            border-color: white;
+        }
+        .color-option.active {
+            border-color: white;
+            box-shadow: 0 0 8px rgba(255,255,255,0.6);
+        }
+        
         /* 完成訊息 */
         .completion-message {
             position: fixed;
@@ -335,7 +390,7 @@
             top: 50%;
             transform: translate(-50%, -50%);
             color: rgba(255, 255, 255, 0.5);
-            font-size: 12px;
+            font-size: 9px;
             pointer-events: none;
         }
 
@@ -347,7 +402,7 @@
             background: rgba(0,0,0,0.9);
             justify-content: center;
             align-items: center;
-            z-index: 9999;
+            z-index: 99999;
         }
         .preview-overlay.show { display: flex; }
         .preview-overlay img { max-width: 90%; max-height: 90%; }
@@ -376,10 +431,6 @@
                 <option value="196">14x14 (196片)</option>
                 <option value="225">15x15 (225片)</option>
                 <option value="256">16x16 (256片)</option>
-                <option value="289">17x17 (289片)</option>
-                <option value="324">18x18 (324片)</option>
-                <option value="361">19x19 (361片)</option>
-                <option value="400">20x20 (400片)</option>
             </select>
             <button class="button" onclick="startGame()">▶ 開始遊戲</button>
             <button class="button" onclick="autoComplete()">✨ 自動完成</button>
@@ -392,28 +443,40 @@
                 <label for="toggleRotation" class="checkbox-label">旋轉</label>
             </div>
             <div class="checkbox-container">
-                <input type="checkbox" id="toggleScatter" class="checkbox-input">
-                <label for="toggleScatter" class="checkbox-label">散亂</label>
+                <input type="checkbox" id="toggleTray" class="checkbox-input">
+                <label for="toggleTray" class="checkbox-label">托盤</label>
+            </div>
+            <div class="color-picker-wrapper">
+                <button class="color-picker-btn" id="colorPickerBtn" style="background:#1a1a2e;" onclick="toggleColorPicker()"></button>
+                <div class="color-picker-popup" id="colorPickerPopup">
+                    <button class="color-option active" data-color="#1a1a2e" style="background:#1a1a2e;" onclick="setBgColor('#1a1a2e')"></button>
+                    <button class="color-option" data-color="#2d4a3e" style="background:#2d4a3e;" onclick="setBgColor('#2d4a3e')"></button>
+                    <button class="color-option" data-color="#4a3728" style="background:#4a3728;" onclick="setBgColor('#4a3728')"></button>
+                    <button class="color-option" data-color="#3d2845" style="background:#3d2845;" onclick="setBgColor('#3d2845')"></button>
+                    <button class="color-option" data-color="#2c3e50" style="background:#2c3e50;" onclick="setBgColor('#2c3e50')"></button>
+                    <button class="color-option" data-color="#1e3a5f" style="background:#1e3a5f;" onclick="setBgColor('#1e3a5f')"></button>
+                </div>
             </div>
             <div style="margin-top:10px; font-size:10px; color:#aaa;">💡 長按空白處查看原圖</div>
         </div>
         <button class="controls-toggle" id="controlsToggle" onclick="toggleControls()">◀</button>
         
         <!-- 抽屜控制 -->
-        <div class="drawer-count" id="drawerCount">剩餘: 0 塊</div>
-        <div class="drawer-controls">
+        <div class="drawer-count" id="drawerCount" style="display: none;">剩餘: 0 塊</div>
+        <div class="drawer-controls" style="display: none;">
             <button class="drawer-btn" onclick="setDrawerPosition('top')">⬆</button>
             <button class="drawer-btn active" onclick="setDrawerPosition('bottom')">⬇</button>
             <button class="drawer-btn" onclick="setDrawerPosition('left')">⬅</button>
             <button class="drawer-btn" onclick="setDrawerPosition('right')">➡</button>
             <button class="drawer-btn" onclick="setDrawerPosition('none')">✕</button>
             <button class="drawer-btn shuffle-btn" onclick="shuffleDrawer()">🔀</button>
+            <button class="drawer-btn scatter-btn" id="scatterBtn" onclick="toggleScatterBtn()">📦</button>
         </div>
         
         <!-- 拼圖抽屜 -->
-        <div class="puzzle-drawer drawer-bottom" id="puzzleDrawer"></div>
+        <div class="puzzle-drawer drawer-bottom" id="puzzleDrawer" style="display: none;"></div>
         <!-- Drawer 大小調整拖曳條（獨立於 drawer 外） -->
-        <div class="drawer-resize-handle horizontal" id="drawerResizeHandle"></div>
+        <div class="drawer-resize-handle horizontal" id="drawerResizeHandle" style="display: none;"></div>
     </div>
 
     <div class="preview-overlay" id="previewOverlay">
@@ -430,6 +493,7 @@
         let showHint = false;
         let enableRotation = false;
         let scatterMode = false; // 散亂模式
+        let trayMode = false; // 托盤模式（true=使用drawer, false=散落在格線區周圍）
         let rows, cols;
         let drawerPosition = 'bottom';
         let drawerPieces = [];
@@ -472,7 +536,18 @@
 
         // 選擇圖片
         function selectImage() {
-            document.getElementById('imageInput').click();
+            // 如果在 Android WebView 中，使用 Android 介面
+            if (typeof Android !== 'undefined' && Android.selectImage) {
+                Android.selectImage();
+            } else {
+                // 否則使用標準 file input
+                document.getElementById('imageInput').click();
+            }
+        }
+        
+        // Android 呼叫的函數：從 Base64 載入圖片
+        function loadImageFromBase64(base64) {
+            loadImage('data:image/jpeg;base64,' + base64);
         }
 
         // 控制面板收合
@@ -728,14 +803,33 @@
             const dx = e.clientX - containerDrag.startX;
             const dy = e.clientY - containerDrag.startY;
             
-            // 限制拖曳範圍
+            // 限制拖曳範圍（格線區不能超出縮放後的虛線邊界）
             let newLeft = containerDrag.startLeft + dx;
             let newTop = containerDrag.startTop + dy;
             
-            newLeft = Math.max(containerOriginalPos.left - containerDragLimit.x, 
-                              Math.min(containerOriginalPos.left + containerDragLimit.x, newLeft));
-            newTop = Math.max(containerOriginalPos.top - containerDragLimit.y, 
-                             Math.min(containerOriginalPos.top + containerDragLimit.y, newTop));
+            const gameArea = document.getElementById('gameArea');
+            const baseMargin = 10;
+            
+            // 縮放後的邊框範圍
+            const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+            const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+            const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
+            const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
+            
+            // 縮放後的格線區大小
+            const scaledContainerWidth = baseContainerWidth * containerScale;
+            const scaledContainerHeight = baseContainerHeight * containerScale;
+            const offsetX = (baseContainerWidth - scaledContainerWidth) / 2;
+            const offsetY = (baseContainerHeight - scaledContainerHeight) / 2;
+            
+            // 限制：格線區縮放後的邊緣不能超出虛線
+            const minLeft = borderLeft - offsetX;
+            const maxLeft = borderLeft + borderWidth - scaledContainerWidth - offsetX;
+            const minTop = borderTop - offsetY;
+            const maxTop = borderTop + borderHeight - scaledContainerHeight - offsetY;
+            
+            newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
+            newTop = Math.max(minTop, Math.min(maxTop, newTop));
             
             container.style.left = newLeft + 'px';
             container.style.top = newTop + 'px';
@@ -749,14 +843,33 @@
             const dx = touch.clientX - containerDrag.startX;
             const dy = touch.clientY - containerDrag.startY;
             
-            // 限制拖曳範圍
+            // 限制拖曳範圍（格線區不能超出縮放後的虛線邊界）
             let newLeft = containerDrag.startLeft + dx;
             let newTop = containerDrag.startTop + dy;
             
-            newLeft = Math.max(containerOriginalPos.left - containerDragLimit.x, 
-                              Math.min(containerOriginalPos.left + containerDragLimit.x, newLeft));
-            newTop = Math.max(containerOriginalPos.top - containerDragLimit.y, 
-                             Math.min(containerOriginalPos.top + containerDragLimit.y, newTop));
+            const gameArea = document.getElementById('gameArea');
+            const baseMargin = 10;
+            
+            // 縮放後的邊框範圍
+            const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+            const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+            const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
+            const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
+            
+            // 縮放後的格線區大小
+            const scaledContainerWidth = baseContainerWidth * containerScale;
+            const scaledContainerHeight = baseContainerHeight * containerScale;
+            const offsetX = (baseContainerWidth - scaledContainerWidth) / 2;
+            const offsetY = (baseContainerHeight - scaledContainerHeight) / 2;
+            
+            // 限制：格線區縮放後的邊緣不能超出虛線
+            const minLeft = borderLeft - offsetX;
+            const maxLeft = borderLeft + borderWidth - scaledContainerWidth - offsetX;
+            const minTop = borderTop - offsetY;
+            const maxTop = borderTop + borderHeight - scaledContainerHeight - offsetY;
+            
+            newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
+            newTop = Math.max(minTop, Math.min(maxTop, newTop));
             
             container.style.left = newLeft + 'px';
             container.style.top = newTop + 'px';
@@ -929,25 +1042,35 @@
             gameArea.addEventListener('touchstart', function(e) {
                 if (!isPlaying) return;
                 if (e.touches.length === 2) {
-                    // 檢查兩根手指是否都在拼圖區內
-                    const container = document.getElementById('puzzleContainer');
-                    const containerRect = container.getBoundingClientRect();
+                    // 檢查兩根手指是否都在 gameArea 內（排除 drawer 區域）
+                    const gameAreaRect = gameArea.getBoundingClientRect();
+                    const drawer = document.getElementById('puzzleDrawer');
+                    const drawerRect = drawer && drawer.style.display !== 'none' ? drawer.getBoundingClientRect() : null;
                     
-                    let bothInContainer = true;
+                    let bothInGameArea = true;
                     for (let i = 0; i < 2; i++) {
                         const touch = e.touches[i];
                         const x = touch.clientX;
                         const y = touch.clientY;
                         
-                        // 必須在 container 範圍內
-                        if (x < containerRect.left || x > containerRect.right ||
-                            y < containerRect.top || y > containerRect.bottom) {
-                            bothInContainer = false;
+                        // 必須在 gameArea 範圍內
+                        if (x < gameAreaRect.left || x > gameAreaRect.right ||
+                            y < gameAreaRect.top || y > gameAreaRect.bottom) {
+                            bothInGameArea = false;
                             break;
+                        }
+                        
+                        // 托盤模式：排除 drawer 區域
+                        if (trayMode && drawerRect) {
+                            if (x >= drawerRect.left && x <= drawerRect.right &&
+                                y >= drawerRect.top && y <= drawerRect.bottom) {
+                                bothInGameArea = false;
+                                break;
+                            }
                         }
                     }
                     
-                    if (!bothInContainer) return;
+                    if (!bothInGameArea) return;
                     
                     pinchZoom.active = true;
                     pinchZoom.startDistance = getDistance(e.touches);
@@ -963,10 +1086,18 @@
                 const scale = (currentDistance / pinchZoom.startDistance) * pinchZoom.startScale;
                 
                 // 限制縮放範圍：0.5 ~ 2.0
-                containerScale = Math.max(0.5, Math.min(2.0, scale));
+                const newScale = Math.max(0.5, Math.min(2.0, scale));
+                const scaleRatio = newScale / containerScale;
+                containerScale = newScale;
                 
                 const container = document.getElementById('puzzleContainer');
                 container.style.transform = `scale(${containerScale})`;
+                
+                // 散落模式：同時縮放未放置的拼圖和邊框
+                if (!trayMode) {
+                    updateScatterPiecesScale(scaleRatio);
+                    updateScatterBorder();
+                }
                 
                 e.preventDefault();
             }, {passive: false});
@@ -1185,24 +1316,42 @@
         function createDrawerItem(piece, pw, ph, tab) {
             const wrapper = document.createElement('div');
             wrapper.className = 'drawer-piece-wrapper';
+            const actualW = pw + 2 * tab;
+            const actualH = ph + 2 * tab;
             // wrapper 用 padding 來容納 translate 後的拼圖
             wrapper.style.cssText = `width:${pw}px; height:${ph}px; padding:${tab}px; position:relative; box-sizing:content-box;`;
             
+            // 重新生成正確大小的拼圖樣式（不要複製 piece.style.cssText）
             const div = document.createElement('div');
-            // 完整複製 piece 樣式（包含 translate）
-            div.style.cssText = piece.style.cssText.replace('position:absolute;', 'position:relative;');
+            const pieceRow = Math.floor((piece.pieceNumber - 1) / cols);
+            const pieceCol = (piece.pieceNumber - 1) % cols;
+            const size = { width: pw * cols, height: ph * rows };
+            const bgX = -(pieceCol * pw) + tab;
+            const bgY = -(pieceRow * ph) + tab;
+            const ed = piece.edges;
+            const path = generatePiecePath(pw, ph, ed);
             
+            div.style.cssText = `
+                width: ${actualW}px;
+                height: ${actualH}px;
+                background-image: url(${originalImage.src});
+                background-size: ${size.width}px ${size.height}px;
+                background-position: ${bgX}px ${bgY}px;
+                background-repeat: no-repeat;
+                clip-path: path('${path}');
+                -webkit-clip-path: path('${path}');
+                position: relative;
+                transform: translate(-${tab}px, -${tab}px);
+                transform-origin: ${actualW/2}px ${actualH/2}px;
+            `;
             wrapper.appendChild(div);
             
-            // 加入 SVG 邊框線
-            const svgW = pw + 2 * tab;
-            const svgH = ph + 2 * tab;
-            const ed = piece.edges || {top: null, right: null, bottom: null, left: null};
+            // 加入 SVG 邊框線（使用相同的 pw, ph）
             const borderPath = generateCurvedPath(pw, ph, ed);
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('width', svgW);
-            svg.setAttribute('height', svgH);
-            svg.style.cssText = 'position:absolute; top:0; left:0; pointer-events:none;';
+            svg.setAttribute('width', actualW);
+            svg.setAttribute('height', actualH);
+            svg.style.cssText = 'position:absolute; top:0; left:0; pointer-events:none; transform-origin: center center;';
             svg.innerHTML = `<path d="${borderPath}" fill="none" stroke="#000" stroke-width="1"/>`;
             wrapper.appendChild(svg);
             
@@ -1213,15 +1362,16 @@
             if (randomRotation !== 0) {
                 div.style.transform = `translate(-${tab}px,-${tab}px) rotate(${randomRotation}deg)`;
                 svg.style.transform = `rotate(${randomRotation}deg)`;
-                svg.style.transformOrigin = 'center center';
             }
             
-            // 儲存編號供提示用
+            // 儲存資訊
             wrapper.pieceNumber = piece.pieceNumber;
             wrapper.pieceRef = piece;
             wrapper.pieceDiv = div;
             wrapper.pieceSvg = svg;
             wrapper.tab = tab;
+            wrapper.pw = pw;
+            wrapper.ph = ph;
             wrapper.addEventListener('mousedown', startDragFromDrawer);
             wrapper.addEventListener('touchstart', startTouchFromDrawer, {passive: true});
             return wrapper;
@@ -1247,7 +1397,7 @@
         }
 
         // 開始遊戲
-        function startGame(skipConfirm = false) {
+        function startGame(skipConfirm = false, isRestoring = false) {
             if (!originalImage) { alert('請先選擇圖片！'); return; }
             
             // 檢查是否有進行中的遊戲
@@ -1256,8 +1406,10 @@
                 return;
             }
             
-            // 清除舊存檔（開始新遊戲）
-            clearSave();
+            // 清除舊存檔（開始新遊戲，恢復時不清除）
+            if (!isRestoring) {
+                clearSave();
+            }
             stopAutoSave();
             
             // 顯示進度
@@ -1283,33 +1435,74 @@
                 
                 const container = document.getElementById('puzzleContainer');
                 const drawer = document.getElementById('puzzleDrawer');
+                const handle = document.getElementById('drawerResizeHandle');
+                const gameArea = document.getElementById('gameArea');
                 container.innerHTML = '';
                 drawer.innerHTML = '';
+                
+                // 清除散落模式的拼圖（在 gameArea 中的所有散落拼圖相關元素）
+                const scatterPieces = gameArea.querySelectorAll('.scatter-piece-wrapper');
+                console.log('清除散落拼圖數量:', scatterPieces.length);
+                scatterPieces.forEach(el => {
+                    el.parentNode.removeChild(el);
+                });
+                
+                // 清除散落模式邊界線
+                const scatterBorder = document.getElementById('scatterBorder');
+                if (scatterBorder) {
+                    scatterBorder.parentNode.removeChild(scatterBorder);
+                }
+                
                 pieces = []; drawerPieces = []; isPlaying = true;
                 drawerPieceZIndex = 1; // 重置 z-index 計數器
                 
-                // 讀取散亂模式設定
-                scatterMode = document.getElementById('toggleScatter').checked;
+                // 重置散落模式狀態（開始新遊戲時回到托盤模式）
+                scatterMode = false;
+                const scatterBtn = document.getElementById('scatterBtn');
+                if (scatterBtn) scatterBtn.classList.remove('active');
                 
-                // 設定 drawer class（包含方向和散亂模式）
-                drawer.className = 'puzzle-drawer drawer-' + drawerPosition + (scatterMode ? ' scatter-mode' : '');
+                // 讀取模式設定
+                trayMode = document.getElementById('toggleTray').checked;
                 
-                // 更新 drawer 方向按鈕的 active 狀態
-                document.querySelectorAll('.drawer-btn[onclick^="setDrawerPosition"]').forEach(b => {
-                    const pos = b.getAttribute('onclick').match(/'(\w+)'/)[1];
-                    b.classList.toggle('active', pos === drawerPosition);
-                });
-                
-                // 設定 drawer 大小
-                if (drawerPosition === 'top' || drawerPosition === 'bottom') {
-                    drawer.style.width = '';
-                    drawer.style.height = drawerSize + 'px';
-                } else if (drawerPosition === 'left' || drawerPosition === 'right') {
-                    drawer.style.height = '';
-                    drawer.style.width = drawerSize + 'px';
+                // 托盤模式：顯示 drawer 和相關控制
+                // 散落模式：隱藏 drawer 和相關控制
+                if (trayMode) {
+                    // 設定 drawer class（包含方向和散亂模式）
+                    drawer.className = 'puzzle-drawer drawer-' + drawerPosition + (scatterMode ? ' scatter-mode' : '');
+                    drawer.style.display = '';
+                    
+                    // 更新散亂按鈕狀態
+                    const scatterBtn = document.getElementById('scatterBtn');
+                    if (scatterBtn) scatterBtn.classList.toggle('active', scatterMode);
+                    
+                    // 更新 drawer 方向按鈕的 active 狀態
+                    document.querySelectorAll('.drawer-btn[onclick^="setDrawerPosition"]').forEach(b => {
+                        const pos = b.getAttribute('onclick').match(/'(\w+)'/)[1];
+                        b.classList.toggle('active', pos === drawerPosition);
+                    });
+                    
+                    // 設定 drawer 大小
+                    if (drawerPosition === 'top' || drawerPosition === 'bottom') {
+                        drawer.style.width = '';
+                        drawer.style.height = drawerSize + 'px';
+                    } else if (drawerPosition === 'left' || drawerPosition === 'right') {
+                        drawer.style.height = '';
+                        drawer.style.width = drawerSize + 'px';
+                    }
+                    
+                    // 顯示 drawer 相關控制
+                    document.querySelector('.drawer-controls').style.display = '';
+                    document.getElementById('drawerCount').style.display = '';
+                    handle.classList.add('visible');
+                } else {
+                    // 散落模式：隱藏 drawer 和相關控制
+                    drawer.style.display = 'none';
+                    document.querySelector('.drawer-controls').style.display = 'none';
+                    document.getElementById('drawerCount').style.display = 'none';
+                    handle.classList.remove('visible');
                 }
 
-                const size = calculateContainerSize();
+                const size = trayMode ? calculateContainerSize() : calculateContainerSizeForScatter();
                 const count = parseInt(document.getElementById('pieceCount').value);
                 rows = cols = Math.sqrt(count);
                 
@@ -1321,19 +1514,19 @@
                 pieceWidth = pw + 2 * tab + 20;  // 加上 padding/margin
                 pieceHeight = ph + 2 * tab + 20;
                 
-                const pos = calculateContainerPosition(size.width, size.height);
+                const pos = trayMode ? calculateContainerPosition(size.width, size.height) : calculateContainerPositionForScatter(size.width, size.height);
 
                 container.style.width = size.width + 'px';
                 container.style.height = size.height + 'px';
                 container.style.left = pos.left + 'px';
                 container.style.top = pos.top + 'px';
-                container.style.transform = 'scale(0.85)';
+                container.style.transform = trayMode ? 'scale(0.85)' : 'scale(1)';
                 container.style.transformOrigin = 'center center';
                 
                 // 儲存原始容器大小供縮放使用
                 baseContainerWidth = size.width;
                 baseContainerHeight = size.height;
-                containerScale = 0.85;  // 初始縮放為 85%
+                containerScale = trayMode ? 0.85 : 1;
                 
                 // 記錄原始位置，設定拖曳範圍（半個拼圖區大小）
                 containerOriginalPos = { left: pos.left, top: pos.top };
@@ -1342,33 +1535,45 @@
                     y: (rows / 2) * ph   // 可上下移動半個拼圖區
                 };
                 
-                // 初始化 resize handle 位置（緊貼 drawer 邊緣）
-                const handle = document.getElementById('drawerResizeHandle');
-                const gameArea = document.getElementById('gameArea');
-                if (drawerPosition === 'bottom') {
-                    handle.className = 'drawer-resize-handle horizontal visible';
-                    handle.style.top = (gameArea.offsetHeight - drawerSize - 20) + 'px';
-                    handle.style.left = '0';
-                    handle.style.right = '0';
-                    handle.style.bottom = '';
-                } else if (drawerPosition === 'top') {
-                    handle.className = 'drawer-resize-handle horizontal visible';
-                    handle.style.top = drawerSize + 'px';
-                    handle.style.left = '0';
-                    handle.style.right = '0';
-                    handle.style.bottom = '';
-                } else if (drawerPosition === 'left') {
-                    handle.className = 'drawer-resize-handle vertical visible';
-                    handle.style.left = drawerSize + 'px';
-                    handle.style.right = '';
-                    handle.style.top = '0';
-                    handle.style.bottom = '0';
-                } else if (drawerPosition === 'right') {
-                    handle.className = 'drawer-resize-handle vertical visible';
-                    handle.style.right = (drawerSize + 20) + 'px';
-                    handle.style.left = '';
-                    handle.style.top = '0';
-                    handle.style.bottom = '0';
+                // 初始化 resize handle 位置（緊貼 drawer 邊緣）- 只在托盤模式
+                if (trayMode) {
+                    // 顯示 drawer 相關元件
+                    drawer.style.display = '';
+                    document.querySelector('.drawer-controls').style.display = '';
+                    document.getElementById('drawerCount').style.display = '';
+                    handle.style.display = '';
+                    
+                    if (drawerPosition === 'bottom') {
+                        handle.className = 'drawer-resize-handle horizontal visible';
+                        handle.style.top = (gameArea.offsetHeight - drawerSize - 20) + 'px';
+                        handle.style.left = '0';
+                        handle.style.right = '0';
+                        handle.style.bottom = '';
+                    } else if (drawerPosition === 'top') {
+                        handle.className = 'drawer-resize-handle horizontal visible';
+                        handle.style.top = drawerSize + 'px';
+                        handle.style.left = '0';
+                        handle.style.right = '0';
+                        handle.style.bottom = '';
+                    } else if (drawerPosition === 'left') {
+                        handle.className = 'drawer-resize-handle vertical visible';
+                        handle.style.left = drawerSize + 'px';
+                        handle.style.right = '';
+                        handle.style.top = '0';
+                        handle.style.bottom = '0';
+                    } else if (drawerPosition === 'right') {
+                        handle.className = 'drawer-resize-handle vertical visible';
+                        handle.style.right = (drawerSize + 20) + 'px';
+                        handle.style.left = '';
+                        handle.style.top = '0';
+                        handle.style.bottom = '0';
+                    }
+                } else {
+                    // 散落模式：隱藏 drawer 相關元件
+                    drawer.style.display = 'none';
+                    document.querySelector('.drawer-controls').style.display = 'none';
+                    document.getElementById('drawerCount').style.display = 'none';
+                    handle.style.display = 'none';
                 }
 
                 const outlines = document.createElement('div');
@@ -1404,15 +1609,31 @@
                 await updateProgress(85, '打亂順序...');
                 
                 temp.forEach(piece => {
-                    const item = createDrawerItem(piece, pw, ph, tab);
-                    drawer.appendChild(item);
-                    drawerPieces.push({piece, drawerItem: item, isPlaced: false});
+                    if (trayMode) {
+                        // 托盤模式：放入 drawer
+                        const item = createDrawerItem(piece, pw, ph, tab);
+                        drawer.appendChild(item);
+                        drawerPieces.push({piece, drawerItem: item, isPlaced: false});
+                    } else {
+                        // 散落模式：創建散落拼圖項目並放到 gameArea
+                        const item = createScatterItem(piece, pw, ph, tab);
+                        gameArea.appendChild(item);
+                        drawerPieces.push({piece, drawerItem: item, isPlaced: false});
+                    }
                     pieces.push(piece);
                 });
                 
-                // 散亂模式：使用分散排列
-                if (scatterMode) {
+                // 托盤模式 + 散亂模式：使用分散排列
+                if (trayMode && scatterMode) {
                     repositionScatteredPieces();
+                }
+                
+                // 散落模式：將拼圖散落在格線區周圍，顯示邊界線（恢復時跳過隨機分佈）
+                if (!trayMode) {
+                    showScatterBorder();
+                    if (!isRestoring) {
+                        scatterPiecesAroundContainer();
+                    }
                 }
                 
                 updateDrawerCount();
@@ -1425,12 +1646,214 @@
             })();
         }
         
-        // 切換散亂模式
-        function toggleScatterMode() {
+        // 計算散落模式的容器大小（格線區佔 66%）
+        function calculateContainerSizeForScatter() {
+            const gameArea = document.querySelector('.game-area');
+            const totalWidth = gameArea.offsetWidth;
+            const totalHeight = gameArea.offsetHeight;
+            
+            // 格線區佔 66%，所以可用區域是 66%
+            const availableWidth = totalWidth * 0.66;
+            const availableHeight = totalHeight * 0.66;
+            
+            // 根據圖片比例計算拼圖區大小
+            const ratio = originalImage.width / originalImage.height;
+            let w, h;
+            if (availableWidth / availableHeight > ratio) {
+                h = availableHeight;
+                w = h * ratio;
+            } else {
+                w = availableWidth;
+                h = w / ratio;
+            }
+            
+            return { width: w, height: h };
+        }
+        
+        // 計算散落模式的容器位置（置中）
+        function calculateContainerPositionForScatter(containerWidth, containerHeight) {
+            const gameArea = document.querySelector('.game-area');
+            const totalWidth = gameArea.offsetWidth;
+            const totalHeight = gameArea.offsetHeight;
+            
+            return {
+                left: (totalWidth - containerWidth) / 2,
+                top: (totalHeight - containerHeight) / 2
+            };
+        }
+        
+        // 創建散落模式的拼圖項目（1:1 比例，可直接拖入格線區）
+        function createScatterItem(piece, pw, ph, tab) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'scatter-piece-wrapper';
+            const actualW = pw + 2*tab;
+            const actualH = ph + 2*tab;
+            wrapper.style.cssText = `
+                position: absolute;
+                width: ${actualW}px;
+                height: ${actualH}px;
+                cursor: grab;
+                z-index: 1;
+            `;
+            
+            // 重新生成正確大小的拼圖樣式
+            const div = document.createElement('div');
+            const pieceRow = Math.floor((piece.pieceNumber - 1) / cols);
+            const pieceCol = (piece.pieceNumber - 1) % cols;
+            const size = { width: pw * cols, height: ph * rows };
+            const bgX = -(pieceCol * pw) + tab;
+            const bgY = -(pieceRow * ph) + tab;
+            const ed = piece.edges;
+            const path = generatePiecePath(pw, ph, ed);
+            
+            div.style.cssText = `
+                width: ${actualW}px;
+                height: ${actualH}px;
+                background-image: url(${originalImage.src});
+                background-size: ${size.width}px ${size.height}px;
+                background-position: ${bgX}px ${bgY}px;
+                background-repeat: no-repeat;
+                clip-path: path('${path}');
+                -webkit-clip-path: path('${path}');
+                position: absolute;
+                left: 0;
+                top: 0;
+                transform-origin: center center;
+            `;
+            wrapper.appendChild(div);
+            
+            // 加入 SVG 邊框線
+            const borderPath = generateCurvedPath(pw, ph, ed);
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', actualW);
+            svg.setAttribute('height', actualH);
+            svg.style.cssText = `position:absolute; top:0; left:0; pointer-events:none; transform-origin: center center;`;
+            svg.innerHTML = `<path d="${borderPath}" fill="none" stroke="#000" stroke-width="1"/>`;
+            wrapper.appendChild(svg);
+            
+            // 隨機旋轉（如果啟用）
+            const randomRotation = enableRotation ? Math.floor(Math.random() * 360) : 0;
+            wrapper.currentRotation = randomRotation;
+            piece.currentRotation = randomRotation;
+            if (randomRotation !== 0) {
+                div.style.transform = `rotate(${randomRotation}deg)`;
+                svg.style.transform = `rotate(${randomRotation}deg)`;
+            }
+            
+            // 儲存資訊供拖曳使用
+            wrapper.pieceNumber = piece.pieceNumber;
+            wrapper.pieceRef = piece;
+            wrapper.pieceDiv = div;
+            wrapper.pieceSvg = svg;
+            wrapper.tab = tab;
+            wrapper.pw = pw;
+            wrapper.ph = ph;
+            wrapper.addEventListener('mousedown', startDragFromScatter);
+            wrapper.addEventListener('touchstart', startTouchFromScatter, {passive: false});
+            return wrapper;
+        }
+        
+        // 將拼圖散落在格線區周圍
+        function scatterPiecesAroundContainer() {
+            const container = document.getElementById('puzzleContainer');
+            const gameArea = document.getElementById('gameArea');
+            
+            // 計算格線區在 gameArea 中的位置
+            const containerLeft = parseFloat(container.style.left);
+            const containerTop = parseFloat(container.style.top);
+            const containerWidth = parseFloat(container.style.width);
+            const containerHeight = parseFloat(container.style.height);
+            const containerRight = containerLeft + containerWidth;
+            const containerBottom = containerTop + containerHeight;
+            
+            const gameW = gameArea.offsetWidth;
+            const gameH = gameArea.offsetHeight;
+            const margin = 15; // 邊界間距
+            const gap = 10; // 與格線區的間距
+            
+            // 定義四個散落區域（格線區周圍）
+            const regions = [];
+            
+            // 上方區域
+            if (containerTop > margin + 50) {
+                regions.push({ 
+                    x1: margin, x2: gameW - margin, 
+                    y1: margin, y2: containerTop - gap 
+                });
+            }
+            // 下方區域
+            if (gameH - containerBottom > margin + 50) {
+                regions.push({ 
+                    x1: margin, x2: gameW - margin, 
+                    y1: containerBottom + gap, y2: gameH - margin 
+                });
+            }
+            // 左方區域
+            if (containerLeft > margin + 50) {
+                regions.push({ 
+                    x1: margin, x2: containerLeft - gap, 
+                    y1: margin, y2: gameH - margin 
+                });
+            }
+            // 右方區域
+            if (gameW - containerRight > margin + 50) {
+                regions.push({ 
+                    x1: containerRight + gap, x2: gameW - margin, 
+                    y1: margin, y2: gameH - margin 
+                });
+            }
+            
+            // 如果沒有足夠空間，使用整個區域但避開格線區中心
+            if (regions.length === 0) {
+                regions.push({ x1: margin, x2: gameW - margin, y1: margin, y2: gameH - margin });
+            }
+            
+            drawerPieces.forEach(dp => {
+                if (dp.isPlaced) return;
+                
+                const wrapper = dp.drawerItem;
+                const wrapperW = parseFloat(wrapper.style.width);
+                const wrapperH = parseFloat(wrapper.style.height);
+                
+                // 嘗試找到不與格線區重疊的位置
+                let x, y, attempts = 0;
+                do {
+                    // 隨機選擇一個區域
+                    const region = regions[Math.floor(Math.random() * regions.length)];
+                    
+                    // 在區域內隨機位置
+                    const maxX = Math.max(region.x1, region.x2 - wrapperW);
+                    const maxY = Math.max(region.y1, region.y2 - wrapperH);
+                    x = region.x1 + Math.random() * (maxX - region.x1);
+                    y = region.y1 + Math.random() * (maxY - region.y1);
+                    
+                    attempts++;
+                } while (
+                    attempts < 10 &&
+                    x + wrapperW > containerLeft - gap && x < containerRight + gap &&
+                    y + wrapperH > containerTop - gap && y < containerBottom + gap
+                );
+                
+                // 確保在邊界內
+                x = Math.max(margin, Math.min(gameW - wrapperW - margin, x));
+                y = Math.max(margin, Math.min(gameH - wrapperH - margin, y));
+                
+                wrapper.style.left = x + 'px';
+                wrapper.style.top = y + 'px';
+                wrapper.style.zIndex = drawerPieceZIndex++;
+            });
+        }
+        
+        // 切換散亂模式（按鈕版本）
+        function toggleScatterBtn() {
             if (!isPlaying || drawerPieces.length === 0) return;
             
-            scatterMode = document.getElementById('toggleScatter').checked;
+            scatterMode = !scatterMode;
             const drawer = document.getElementById('puzzleDrawer');
+            const btn = document.getElementById('scatterBtn');
+            
+            // 更新按鈕狀態
+            btn.classList.toggle('active', scatterMode);
             
             if (scatterMode) {
                 drawer.classList.add('scatter-mode');
@@ -1448,8 +1871,700 @@
             }
         }
         
-        // 監聽散亂 checkbox 變化
-        document.getElementById('toggleScatter').addEventListener('change', toggleScatterMode);
+        // 監聽托盤 checkbox 變化 - 即時切換
+        document.getElementById('toggleTray').addEventListener('change', function() {
+            trayMode = this.checked;
+            if (isPlaying && drawerPieces.length > 0) {
+                switchTrayMode();
+            }
+        });
+        
+        // 即時切換托盤/散落模式
+        function switchTrayMode() {
+            const gameArea = document.getElementById('gameArea');
+            const container = document.getElementById('puzzleContainer');
+            const drawer = document.getElementById('puzzleDrawer');
+            const handle = document.getElementById('drawerResizeHandle');
+            
+            // 計算拼圖大小
+            const pw = baseContainerWidth / cols;
+            const ph = baseContainerHeight / rows;
+            const tab = Math.min(pw, ph) * 0.15;
+            
+            if (trayMode) {
+                // 切換到托盤模式
+                // 顯示 drawer 和控制
+                drawer.style.display = '';
+                drawer.className = 'puzzle-drawer drawer-' + drawerPosition + (scatterMode ? ' scatter-mode' : '');
+                document.querySelector('.drawer-controls').style.display = '';
+                document.getElementById('drawerCount').style.display = '';
+                handle.style.display = '';
+                handle.classList.add('visible');
+                
+                // 隱藏邊界線
+                const border = document.getElementById('scatterBorder');
+                if (border) border.style.display = 'none';
+                
+                // 移動未放置的拼圖從 gameArea 到 drawer
+                drawerPieces.forEach(dp => {
+                    if (!dp.isPlaced) {
+                        // 移除舊的 wrapper
+                        if (dp.drawerItem.parentElement) {
+                            dp.drawerItem.parentElement.removeChild(dp.drawerItem);
+                        }
+                        // 創建新的 drawer item
+                        const newItem = createDrawerItem(dp.piece, pw, ph, tab);
+                        newItem.currentRotation = dp.piece.currentRotation || 0;
+                        if (newItem.currentRotation !== 0) {
+                            const div = newItem.pieceDiv;
+                            const svg = newItem.pieceSvg;
+                            if (div) div.style.transform = `translate(-${tab}px,-${tab}px) rotate(${newItem.currentRotation}deg)`;
+                            if (svg) {
+                                svg.style.transform = `rotate(${newItem.currentRotation}deg)`;
+                                svg.style.transformOrigin = 'center center';
+                            }
+                        }
+                        drawer.appendChild(newItem);
+                        dp.drawerItem = newItem;
+                    }
+                });
+                
+                // 重新計算容器位置和大小
+                const size = calculateContainerSize();
+                const pos = calculateContainerPosition(size.width, size.height);
+                container.style.width = size.width + 'px';
+                container.style.height = size.height + 'px';
+                container.style.left = pos.left + 'px';
+                container.style.top = pos.top + 'px';
+                baseContainerWidth = size.width;
+                baseContainerHeight = size.height;
+                containerOriginalPos = { left: pos.left, top: pos.top };
+                
+                // 重建格線
+                rebuildOutlines();
+                
+                // 散亂模式下重新分佈
+                if (scatterMode) {
+                    repositionScatteredPieces();
+                }
+            } else {
+                // 切換到散落模式
+                // 隱藏 drawer 和控制
+                drawer.style.display = 'none';
+                document.querySelector('.drawer-controls').style.display = 'none';
+                document.getElementById('drawerCount').style.display = 'none';
+                handle.style.display = 'none';
+                handle.classList.remove('visible');
+                
+                // 顯示邊界線
+                showScatterBorder();
+                
+                // 重新計算容器位置和大小（50%）
+                const size = calculateContainerSizeForScatter();
+                const pos = calculateContainerPositionForScatter(size.width, size.height);
+                container.style.width = size.width + 'px';
+                container.style.height = size.height + 'px';
+                container.style.left = pos.left + 'px';
+                container.style.top = pos.top + 'px';
+                container.style.transform = 'scale(1)';
+                baseContainerWidth = size.width;
+                baseContainerHeight = size.height;
+                containerScale = 1;
+                containerOriginalPos = { left: pos.left, top: pos.top };
+                
+                // 重建格線（因為大小改變）
+                rebuildOutlines();
+                
+                // 移動未放置的拼圖從 drawer 到 gameArea
+                const newPw = size.width / cols;
+                const newPh = size.height / rows;
+                const newTab = Math.min(newPw, newPh) * 0.15;
+                
+                drawerPieces.forEach(dp => {
+                    if (!dp.isPlaced) {
+                        // 移除舊的 wrapper
+                        if (dp.drawerItem.parentElement) {
+                            dp.drawerItem.parentElement.removeChild(dp.drawerItem);
+                        }
+                        // 創建新的 scatter item
+                        const newItem = createScatterItem(dp.piece, newPw, newPh, newTab);
+                        newItem.currentRotation = dp.piece.currentRotation || 0;
+                        if (newItem.currentRotation !== 0) {
+                            const div = newItem.pieceDiv;
+                            const svg = newItem.pieceSvg;
+                            // 散落模式不需要 translate
+                            if (div) div.style.transform = `rotate(${newItem.currentRotation}deg)`;
+                            if (svg) {
+                                svg.style.transform = `rotate(${newItem.currentRotation}deg)`;
+                                svg.style.transformOrigin = 'center center';
+                            }
+                        }
+                        gameArea.appendChild(newItem);
+                        dp.drawerItem = newItem;
+                    }
+                });
+                
+                // 散落拼圖到格線區周圍
+                scatterPiecesAroundContainer();
+            }
+            
+            updateDrawerCount();
+        }
+        
+        // 重建格線（切換模式時使用）
+        function rebuildOutlines() {
+            const container = document.getElementById('puzzleContainer');
+            const oldOutlines = container.querySelector('.outlines-container');
+            if (oldOutlines) oldOutlines.remove();
+            
+            const size = { width: parseFloat(container.style.width), height: parseFloat(container.style.height) };
+            const pw = size.width / cols;
+            const ph = size.height / rows;
+            
+            const outlines = document.createElement('div');
+            outlines.className = 'outlines-container';
+            outlines.style.cssText = 'position:absolute;z-index:0;left:0;top:0;';
+            
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    outlines.appendChild(createPieceOutline(i, j, pw, ph, size, edges[i][j]));
+                }
+            }
+            
+            container.insertBefore(outlines, container.firstChild);
+            
+            // 重新放置已放好的拼圖
+            drawerPieces.forEach(dp => {
+                if (dp.isPlaced) {
+                    const pieceRow = Math.floor((dp.piece.pieceNumber - 1) / cols);
+                    const pieceCol = (dp.piece.pieceNumber - 1) % cols;
+                    dp.piece.correctX = pieceCol * pw;
+                    dp.piece.correctY = pieceRow * ph;
+                    dp.piece.style.left = dp.piece.correctX + 'px';
+                    dp.piece.style.top = dp.piece.correctY + 'px';
+                    
+                    // 更新 piece 樣式大小
+                    const tab = Math.min(pw, ph) * 0.15;
+                    const actualW = pw + 2*tab;
+                    const actualH = ph + 2*tab;
+                    const bgX = -(pieceCol * pw) + tab;
+                    const bgY = -(pieceRow * ph) + tab;
+                    const path = generatePiecePath(pw, ph, dp.piece.edges);
+                    dp.piece.style.width = actualW + 'px';
+                    dp.piece.style.height = actualH + 'px';
+                    dp.piece.style.backgroundSize = size.width + 'px ' + size.height + 'px';
+                    dp.piece.style.backgroundPosition = bgX + 'px ' + bgY + 'px';
+                    dp.piece.style.clipPath = `path('${path}')`;
+                    dp.piece.style.webkitClipPath = `path('${path}')`;
+                    dp.piece.style.transform = `translate(-${tab}px,-${tab}px)`;
+                }
+            });
+        }
+        
+        // 顯示散落模式邊界線（跟隨縮放）
+        function showScatterBorder() {
+            let border = document.getElementById('scatterBorder');
+            if (!border) {
+                border = document.createElement('div');
+                border.id = 'scatterBorder';
+                border.style.cssText = `
+                    position: absolute;
+                    border: 2px dashed rgba(255, 255, 255, 0.3);
+                    border-radius: 8px;
+                    pointer-events: none;
+                    z-index: 0;
+                `;
+                document.getElementById('gameArea').appendChild(border);
+            }
+            
+            // 邊框大小 = 遊戲區域 * 縮放比例
+            const gameArea = document.getElementById('gameArea');
+            const baseMargin = 10;
+            
+            // 縮放後的邊框大小
+            const scaledWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+            const scaledHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+            
+            // 置中
+            const left = (gameArea.offsetWidth - scaledWidth) / 2;
+            const top = (gameArea.offsetHeight - scaledHeight) / 2;
+            
+            border.style.left = left + 'px';
+            border.style.top = top + 'px';
+            border.style.width = scaledWidth + 'px';
+            border.style.height = scaledHeight + 'px';
+            border.style.display = 'block';
+        }
+        
+        // 更新散落邊框（縮放時呼叫）
+        function updateScatterBorder() {
+            if (!trayMode) {
+                showScatterBorder();
+            }
+        }
+
+        // ============ 散落模式拖曳處理 ============
+        let scatterDragInfo = null;
+        let isScatterDragging = false;
+        
+        function startDragFromScatter(e) {
+            if (!isPlaying) return;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const wrapper = this;
+            const piece = wrapper.pieceRef;
+            if (!piece || piece.isPlaced) return;
+            
+            // 重置拖曳狀態
+            isScatterDragging = false;
+            
+            // 提升 z-index
+            wrapper.style.zIndex = drawerPieceZIndex++;
+            
+            const rect = wrapper.getBoundingClientRect();
+            scatterDragInfo = {
+                wrapper: wrapper,
+                piece: piece,
+                startX: e.clientX,
+                startY: e.clientY,
+                offsetX: e.clientX - rect.left,
+                offsetY: e.clientY - rect.top,
+                originalLeft: parseFloat(wrapper.style.left),
+                originalTop: parseFloat(wrapper.style.top)
+            };
+            
+            document.addEventListener('mousemove', handleScatterMouseMove);
+            document.addEventListener('mouseup', handleScatterMouseUp);
+        }
+        
+        function handleScatterMouseMove(e) {
+            if (!scatterDragInfo) return;
+            
+            const dx = e.clientX - scatterDragInfo.startX;
+            const dy = e.clientY - scatterDragInfo.startY;
+            
+            // 移動超過閾值才開始拖曳
+            if (!isScatterDragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+                isScatterDragging = true;
+                
+                // 開始拖曳時，如果有旋轉就先歸零
+                const wrapper = scatterDragInfo.wrapper;
+                if (wrapper.currentRotation !== 0) {
+                    wrapper.currentRotation = 0;
+                    scatterDragInfo.piece.currentRotation = 0;
+                    const div = wrapper.pieceDiv;
+                    const svg = wrapper.pieceSvg;
+                    if (div) div.style.transform = '';
+                    if (svg) svg.style.transform = '';
+                }
+            }
+            
+            if (!isScatterDragging) return;
+            
+            const wrapper = scatterDragInfo.wrapper;
+            
+            // 直接移動 wrapper
+            const gameArea = document.getElementById('gameArea');
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            
+            let newX = e.clientX - gameAreaRect.left - scatterDragInfo.offsetX;
+            let newY = e.clientY - gameAreaRect.top - scatterDragInfo.offsetY;
+            
+            // 計算縮放後的虛線邊界
+            const baseMargin = 10;
+            const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+            const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+            const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
+            const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
+            
+            // 限制在虛線邊界內
+            const wrapperWidth = parseFloat(wrapper.style.width);
+            const wrapperHeight = parseFloat(wrapper.style.height);
+            newX = Math.max(borderLeft, Math.min(borderLeft + borderWidth - wrapperWidth, newX));
+            newY = Math.max(borderTop, Math.min(borderTop + borderHeight - wrapperHeight, newY));
+            
+            wrapper.style.left = newX + 'px';
+            wrapper.style.top = newY + 'px';
+        }
+        
+        function handleScatterMouseUp(e) {
+            document.removeEventListener('mousemove', handleScatterMouseMove);
+            document.removeEventListener('mouseup', handleScatterMouseUp);
+            
+            if (!scatterDragInfo) return;
+            
+            const wrapper = scatterDragInfo.wrapper;
+            const piece = scatterDragInfo.piece;
+            
+            if (!isScatterDragging) {
+                // 短按 - 散落模式只顯示提示（不做旋轉，旋轉在拖曳時自動歸零）
+                if (showHint) {
+                    showScatterHint(wrapper);
+                }
+                scatterDragInfo = null;
+                isScatterDragging = false;
+                return;
+            }
+            
+            // 檢查是否放置正確（拖曳時已經歸零旋轉了）
+            const container = document.getElementById('puzzleContainer');
+            const containerRect = container.getBoundingClientRect();
+            const wrapperRect = wrapper.getBoundingClientRect();
+            
+            // 計算 wrapper 中心
+            const wrapperCenterX = wrapperRect.left + wrapperRect.width / 2;
+            const wrapperCenterY = wrapperRect.top + wrapperRect.height / 2;
+            
+            // 使用格線區的基礎大小計算正確位置（不是縮放後的 wrapper 大小）
+            const basePw = baseContainerWidth / cols;
+            const basePh = baseContainerHeight / rows;
+            const baseTab = Math.min(basePw, basePh) * 0.15;
+            const pieceRow = Math.floor((piece.pieceNumber - 1) / cols);
+            const pieceCol = (piece.pieceNumber - 1) % cols;
+            const correctX = pieceCol * basePw;
+            const correctY = pieceRow * basePh;
+            
+            // 正確位置中心在螢幕上的座標（考慮縮放）
+            const correctCenterX = containerRect.left + (correctX + basePw / 2) * containerScale;
+            const correctCenterY = containerRect.top + (correctY + basePh / 2) * containerScale;
+            
+            // 檢查是否接近正確位置（拖曳時已經歸零旋轉了）
+            const tolerance = 25 * containerScale;
+            if (Math.abs(wrapperCenterX - correctCenterX) < tolerance && 
+                Math.abs(wrapperCenterY - correctCenterY) < tolerance) {
+                // 放置正確 - 使用格線區的基礎大小
+                const size = { width: baseContainerWidth, height: baseContainerHeight };
+                const bgX = -(pieceCol * basePw) + baseTab;
+                const bgY = -(pieceRow * basePh) + baseTab;
+                const path = generatePiecePath(basePw, basePh, piece.edges);
+                const actualW = basePw + 2 * baseTab;
+                const actualH = basePh + 2 * baseTab;
+                
+                piece.style.cssText = `
+                    width: ${actualW}px;
+                    height: ${actualH}px;
+                    background-image: url(${originalImage.src});
+                    background-size: ${size.width}px ${size.height}px;
+                    background-position: ${bgX}px ${bgY}px;
+                    background-repeat: no-repeat;
+                    clip-path: path('${path}');
+                    -webkit-clip-path: path('${path}');
+                    position: absolute;
+                    transform: translate(-${baseTab}px, -${baseTab}px);
+                    left: ${correctX}px;
+                    top: ${correctY}px;
+                `;
+                piece.correctX = correctX;
+                piece.correctY = correctY;
+                piece.currentRotation = 0;
+                piece.isPlaced = true;
+                container.appendChild(piece);
+                
+                wrapper.classList.add('placed');
+                wrapper.style.display = 'none';
+                const dp = drawerPieces.find(d => d.piece === piece);
+                if (dp) dp.isPlaced = true;
+                
+                playSnapSound();
+                if (navigator.vibrate) navigator.vibrate(20);
+                updateDrawerCount();
+                checkWin();
+            }
+            
+            scatterDragInfo = null;
+            isScatterDragging = false;
+        }
+        
+        // 散落模式觸控拖曳
+        let scatterTouchInfo = null;
+        let isScatterTouchDragging = false;
+        
+        function startTouchFromScatter(e) {
+            if (!isPlaying) return;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const wrapper = this;
+            const piece = wrapper.pieceRef;
+            if (!piece || piece.isPlaced) return;
+            
+            // 重置拖曳狀態
+            isScatterTouchDragging = false;
+            
+            const touch = e.touches[0];
+            const rect = wrapper.getBoundingClientRect();
+            
+            wrapper.style.zIndex = drawerPieceZIndex++;
+            
+            scatterTouchInfo = {
+                wrapper: wrapper,
+                piece: piece,
+                startX: touch.clientX,
+                startY: touch.clientY,
+                offsetX: touch.clientX - rect.left,
+                offsetY: touch.clientY - rect.top,
+                originalLeft: parseFloat(wrapper.style.left),
+                originalTop: parseFloat(wrapper.style.top)
+            };
+            
+            document.addEventListener('touchmove', handleScatterTouchMove, {passive: false});
+            document.addEventListener('touchend', handleScatterTouchEnd);
+        }
+        
+        function handleScatterTouchMove(e) {
+            if (!scatterTouchInfo) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const dx = touch.clientX - scatterTouchInfo.startX;
+            const dy = touch.clientY - scatterTouchInfo.startY;
+            
+            // 移動超過閾值才開始拖曳
+            if (!isScatterTouchDragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+                isScatterTouchDragging = true;
+                
+                // 開始拖曳時，如果有旋轉就先歸零
+                const wrapper = scatterTouchInfo.wrapper;
+                if (wrapper.currentRotation !== 0) {
+                    wrapper.currentRotation = 0;
+                    scatterTouchInfo.piece.currentRotation = 0;
+                    const div = wrapper.pieceDiv;
+                    const svg = wrapper.pieceSvg;
+                    if (div) div.style.transform = '';
+                    if (svg) svg.style.transform = '';
+                }
+            }
+            
+            if (!isScatterTouchDragging) return;
+            
+            const wrapper = scatterTouchInfo.wrapper;
+            
+            // 直接移動 wrapper
+            const gameArea = document.getElementById('gameArea');
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            
+            let newX = touch.clientX - gameAreaRect.left - scatterTouchInfo.offsetX;
+            let newY = touch.clientY - gameAreaRect.top - scatterTouchInfo.offsetY;
+            
+            // 計算縮放後的虛線邊界
+            const baseMargin = 10;
+            const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+            const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+            const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
+            const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
+            
+            // 限制在虛線邊界內
+            const wrapperWidth = parseFloat(wrapper.style.width);
+            const wrapperHeight = parseFloat(wrapper.style.height);
+            newX = Math.max(borderLeft, Math.min(borderLeft + borderWidth - wrapperWidth, newX));
+            newY = Math.max(borderTop, Math.min(borderTop + borderHeight - wrapperHeight, newY));
+            
+            wrapper.style.left = newX + 'px';
+            wrapper.style.top = newY + 'px';
+        }
+        
+        function handleScatterTouchEnd(e) {
+            document.removeEventListener('touchmove', handleScatterTouchMove);
+            document.removeEventListener('touchend', handleScatterTouchEnd);
+            
+            if (!scatterTouchInfo) return;
+            
+            const wrapper = scatterTouchInfo.wrapper;
+            const piece = scatterTouchInfo.piece;
+            
+            if (!isScatterTouchDragging) {
+                // 短按 - 散落模式只顯示提示（不做旋轉，旋轉在拖曳時自動歸零）
+                if (showHint) {
+                    showScatterHint(wrapper);
+                }
+                scatterTouchInfo = null;
+                isScatterTouchDragging = false;
+                return;
+            }
+            
+            // 檢查是否放置正確（拖曳時已經歸零旋轉了）
+            const container = document.getElementById('puzzleContainer');
+            const containerRect = container.getBoundingClientRect();
+            const wrapperRect = wrapper.getBoundingClientRect();
+            
+            // 計算 wrapper 中心
+            const wrapperCenterX = wrapperRect.left + wrapperRect.width / 2;
+            const wrapperCenterY = wrapperRect.top + wrapperRect.height / 2;
+            
+            // 使用格線區的基礎大小計算正確位置（不是縮放後的 wrapper 大小）
+            const basePw = baseContainerWidth / cols;
+            const basePh = baseContainerHeight / rows;
+            const baseTab = Math.min(basePw, basePh) * 0.15;
+            const pieceRow = Math.floor((piece.pieceNumber - 1) / cols);
+            const pieceCol = (piece.pieceNumber - 1) % cols;
+            const correctX = pieceCol * basePw;
+            const correctY = pieceRow * basePh;
+            
+            // 正確位置中心在螢幕上的座標（考慮縮放）
+            const correctCenterX = containerRect.left + (correctX + basePw / 2) * containerScale;
+            const correctCenterY = containerRect.top + (correctY + basePh / 2) * containerScale;
+            
+            const tolerance = 25 * containerScale;
+            if (Math.abs(wrapperCenterX - correctCenterX) < tolerance && 
+                Math.abs(wrapperCenterY - correctCenterY) < tolerance) {
+                // 放置正確 - 使用格線區的基礎大小
+                const size = { width: baseContainerWidth, height: baseContainerHeight };
+                const bgX = -(pieceCol * basePw) + baseTab;
+                const bgY = -(pieceRow * basePh) + baseTab;
+                const path = generatePiecePath(basePw, basePh, piece.edges);
+                const actualW = basePw + 2 * baseTab;
+                const actualH = basePh + 2 * baseTab;
+                
+                piece.style.cssText = `
+                    width: ${actualW}px;
+                    height: ${actualH}px;
+                    background-image: url(${originalImage.src});
+                    background-size: ${size.width}px ${size.height}px;
+                    background-position: ${bgX}px ${bgY}px;
+                    background-repeat: no-repeat;
+                    clip-path: path('${path}');
+                    -webkit-clip-path: path('${path}');
+                    position: absolute;
+                    transform: translate(-${baseTab}px, -${baseTab}px);
+                    left: ${correctX}px;
+                    top: ${correctY}px;
+                `;
+                piece.correctX = correctX;
+                piece.correctY = correctY;
+                piece.currentRotation = 0;
+                piece.isPlaced = true;
+                container.appendChild(piece);
+                
+                wrapper.classList.add('placed');
+                wrapper.style.display = 'none';
+                const dp = drawerPieces.find(d => d.piece === piece);
+                if (dp) dp.isPlaced = true;
+                
+                playSnapSound();
+                if (navigator.vibrate) navigator.vibrate(20);
+                updateDrawerCount();
+                checkWin();
+            }
+            
+            scatterTouchInfo = null;
+            isScatterTouchDragging = false;
+        }
+        
+        // 更新散落拼圖的縮放（跟隨格線區縮放）
+        function updateScatterPiecesScale(scaleRatio) {
+            const container = document.getElementById('puzzleContainer');
+            const containerRect = container.getBoundingClientRect();
+            const gameArea = document.getElementById('gameArea');
+            
+            // 格線區中心
+            const containerCenterX = parseFloat(container.style.left) + parseFloat(container.style.width) / 2;
+            const containerCenterY = parseFloat(container.style.top) + parseFloat(container.style.height) / 2;
+            
+            drawerPieces.forEach(dp => {
+                if (dp.isPlaced) return;
+                const wrapper = dp.drawerItem;
+                if (!wrapper || wrapper.style.display === 'none') return;
+                
+                // 計算 wrapper 相對於格線區中心的位置
+                const wrapperLeft = parseFloat(wrapper.style.left);
+                const wrapperTop = parseFloat(wrapper.style.top);
+                const wrapperW = parseFloat(wrapper.style.width);
+                const wrapperH = parseFloat(wrapper.style.height);
+                const wrapperCenterX = wrapperLeft + wrapperW / 2;
+                const wrapperCenterY = wrapperTop + wrapperH / 2;
+                
+                // 相對於格線區中心的偏移
+                const offsetX = wrapperCenterX - containerCenterX;
+                const offsetY = wrapperCenterY - containerCenterY;
+                
+                // 縮放偏移和大小
+                const newOffsetX = offsetX * scaleRatio;
+                const newOffsetY = offsetY * scaleRatio;
+                const newW = wrapperW * scaleRatio;
+                const newH = wrapperH * scaleRatio;
+                
+                // 新的中心位置
+                const newCenterX = containerCenterX + newOffsetX;
+                const newCenterY = containerCenterY + newOffsetY;
+                
+                // 更新 wrapper 大小和位置
+                wrapper.style.width = newW + 'px';
+                wrapper.style.height = newH + 'px';
+                wrapper.style.left = (newCenterX - newW / 2) + 'px';
+                wrapper.style.top = (newCenterY - newH / 2) + 'px';
+                
+                // 更新內部拼圖和邊框的大小
+                const pw = wrapper.pw * scaleRatio;
+                const ph = wrapper.ph * scaleRatio;
+                const tab = wrapper.tab * scaleRatio;
+                wrapper.pw = pw;
+                wrapper.ph = ph;
+                wrapper.tab = tab;
+                
+                // 更新 pieceDiv
+                const div = wrapper.pieceDiv;
+                if (div) {
+                    const pieceRow = Math.floor((dp.piece.pieceNumber - 1) / cols);
+                    const pieceCol = (dp.piece.pieceNumber - 1) % cols;
+                    const size = { width: pw * cols, height: ph * rows };
+                    const bgX = -(pieceCol * pw) + tab;
+                    const bgY = -(pieceRow * ph) + tab;
+                    const path = generatePiecePath(pw, ph, dp.piece.edges);
+                    const rotation = wrapper.currentRotation || 0;
+                    
+                    div.style.width = newW + 'px';
+                    div.style.height = newH + 'px';
+                    div.style.backgroundSize = `${size.width}px ${size.height}px`;
+                    div.style.backgroundPosition = `${bgX}px ${bgY}px`;
+                    div.style.clipPath = `path('${path}')`;
+                    div.style.webkitClipPath = `path('${path}')`;
+                    div.style.transformOrigin = `center center`;
+                    div.style.transform = rotation !== 0 ? `rotate(${rotation}deg)` : '';
+                }
+                
+                // 更新 SVG 邊框
+                const svg = wrapper.pieceSvg;
+                if (svg) {
+                    const borderPath = generateCurvedPath(pw, ph, dp.piece.edges);
+                    svg.setAttribute('width', newW);
+                    svg.setAttribute('height', newH);
+                    svg.innerHTML = `<path d="${borderPath}" fill="none" stroke="#000" stroke-width="1"/>`;
+                    const rotation = wrapper.currentRotation || 0;
+                    svg.style.transform = rotation !== 0 ? `rotate(${rotation}deg)` : '';
+                }
+            });
+        }
+        
+        // 散落模式提示
+        function showScatterHint(wrapper) {
+            if (!showHint) return;
+            if (!wrapper || wrapper.classList.contains('placed')) return;
+            
+            const existing = wrapper.querySelector('.scatter-hint');
+            if (existing) existing.remove();
+            
+            const hint = document.createElement('div');
+            hint.className = 'scatter-hint';
+            hint.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0,0,0,0.8);
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 4px 8px;
+                border-radius: 4px;
+                pointer-events: none;
+                z-index: 100;
+            `;
+            hint.textContent = wrapper.pieceNumber;
+            wrapper.appendChild(hint);
+            
+            setTimeout(() => hint.remove(), 3000);
+        }
 
         // 從抽屜拖曳 (滑鼠) - 加入延遲判斷，短按顯示提示，長按才拖曳
         let mouseStartInfo = null;
@@ -1515,7 +2630,6 @@
                     x: (e.clientX - rect.left) / containerScale,
                     y: (e.clientY - rect.top) / containerScale
                 };
-                // 拼圖位置 = 手指位置 - 偏移（偏移已經在 startActualMouseDrag 中計算好了）
                 currentPiece.style.left = (posInContainer.x - currentPiece.offX) + 'px';
                 currentPiece.style.top = (posInContainer.y - currentPiece.offY) + 'px';
             }
@@ -1540,9 +2654,35 @@
                 container.removeChild(piece);
             }
             
-            // 拖曳開始時立即轉正（不套用旋轉）
-            const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-            piece.style.transform = baseTransform;
+            // 重新生成正確大小的拼圖樣式（使用 container 的大小）
+            const pw = baseContainerWidth / cols;
+            const ph = baseContainerHeight / rows;
+            const tab = Math.min(pw, ph) * 0.15;
+            const actualW = pw + 2 * tab;
+            const actualH = ph + 2 * tab;
+            const pieceRow = Math.floor((piece.pieceNumber - 1) / cols);
+            const pieceCol = (piece.pieceNumber - 1) % cols;
+            const size = { width: baseContainerWidth, height: baseContainerHeight };
+            const bgX = -(pieceCol * pw) + tab;
+            const bgY = -(pieceRow * ph) + tab;
+            const path = generatePiecePath(pw, ph, piece.edges);
+            
+            // 更新正確位置（使用新的 pw, ph）
+            piece.correctX = pieceCol * pw;
+            piece.correctY = pieceRow * ph;
+            
+            piece.style.cssText = `
+                width: ${actualW}px;
+                height: ${actualH}px;
+                background-image: url(${originalImage.src});
+                background-size: ${size.width}px ${size.height}px;
+                background-position: ${bgX}px ${bgY}px;
+                background-repeat: no-repeat;
+                clip-path: path('${path}');
+                -webkit-clip-path: path('${path}');
+                position: absolute;
+                transform: translate(-${tab}px, -${tab}px);
+            `;
             
             // 手指在 container 內的位置（考慮縮放）
             const posInContainer = {
@@ -1550,11 +2690,9 @@
                 y: (clientY - rect.top) / containerScale
             };
             
-            // 計算偏移：drawer 中的偏移需要根據拼圖大小比例調整
-            // drawer 中拼圖大小 vs container 中拼圖大小的比例
-            // 由於 piece 本身大小不變，只是 container 縮放了，所以偏移不需要額外調整
-            const offsetX = offsetInWrapperX;
-            const offsetY = offsetInWrapperY;
+            // 計算偏移（使用新的 tab）
+            const offsetX = offsetInWrapperX * (pw / (wrapper.pw || pw));
+            const offsetY = offsetInWrapperY * (ph / (wrapper.ph || ph));
             
             piece.style.left = (posInContainer.x - offsetX) + 'px';
             piece.style.top = (posInContainer.y - offsetY) + 'px';
@@ -1775,9 +2913,35 @@
                 container.removeChild(piece);
             }
             
-            // 拖曳開始時立即轉正（不套用旋轉）
-            const baseTransform = piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
-            piece.style.transform = baseTransform;
+            // 重新生成正確大小的拼圖樣式（使用 container 的大小）
+            const pw = baseContainerWidth / cols;
+            const ph = baseContainerHeight / rows;
+            const tab = Math.min(pw, ph) * 0.15;
+            const actualW = pw + 2 * tab;
+            const actualH = ph + 2 * tab;
+            const pieceRow = Math.floor((piece.pieceNumber - 1) / cols);
+            const pieceCol = (piece.pieceNumber - 1) % cols;
+            const size = { width: baseContainerWidth, height: baseContainerHeight };
+            const bgX = -(pieceCol * pw) + tab;
+            const bgY = -(pieceRow * ph) + tab;
+            const path = generatePiecePath(pw, ph, piece.edges);
+            
+            // 更新正確位置（使用新的 pw, ph）
+            piece.correctX = pieceCol * pw;
+            piece.correctY = pieceRow * ph;
+            
+            piece.style.cssText = `
+                width: ${actualW}px;
+                height: ${actualH}px;
+                background-image: url(${originalImage.src});
+                background-size: ${size.width}px ${size.height}px;
+                background-position: ${bgX}px ${bgY}px;
+                background-repeat: no-repeat;
+                clip-path: path('${path}');
+                -webkit-clip-path: path('${path}');
+                position: absolute;
+                transform: translate(-${tab}px, -${tab}px);
+            `;
             
             // 手指在 container 內的位置（考慮縮放）
             const posInContainer = {
@@ -1785,8 +2949,9 @@
                 y: (lastY - rect.top) / containerScale
             };
             
-            const offsetX = offsetInWrapperX;
-            const offsetY = offsetInWrapperY;
+            // 計算偏移（使用新的 tab，按比例縮放）
+            const offsetX = offsetInWrapperX * (pw / (wrapper.pw || pw));
+            const offsetY = offsetInWrapperY * (ph / (wrapper.ph || ph));
             
             piece.style.left = (posInContainer.x - offsetX) + 'px';
             piece.style.top = (posInContainer.y - offsetY) + 'px';
@@ -1932,17 +3097,57 @@
         function autoComplete() {
             if (!isPlaying) return;
             const container = document.getElementById('puzzleContainer');
+            const size = { width: parseFloat(container.style.width), height: parseFloat(container.style.height) };
+            const pw = size.width / cols;
+            const ph = size.height / rows;
+            const tab = Math.min(pw, ph) * 0.15;
+            
             drawerPieces.forEach((dp, i) => {
                 if (!dp.isPlaced) {
                     setTimeout(() => {
-                        dp.piece.style.transition = 'all 0.4s';
-                        dp.piece.style.left = dp.piece.correctX + 'px';
-                        dp.piece.style.top = dp.piece.correctY + 'px';
-                        // 重置旋轉角度
-                        dp.piece.style.transform = dp.piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                        const pieceRow = Math.floor((dp.piece.pieceNumber - 1) / cols);
+                        const pieceCol = (dp.piece.pieceNumber - 1) % cols;
+                        const correctX = pieceCol * pw;
+                        const correctY = pieceRow * ph;
+                        
+                        // 散落模式：需要重新生成 piece 樣式
+                        if (!trayMode) {
+                            const bgX = -(pieceCol * pw) + tab;
+                            const bgY = -(pieceRow * ph) + tab;
+                            const path = generatePiecePath(pw, ph, dp.piece.edges);
+                            const actualW = pw + 2 * tab;
+                            const actualH = ph + 2 * tab;
+                            
+                            dp.piece.style.cssText = `
+                                width: ${actualW}px;
+                                height: ${actualH}px;
+                                background-image: url(${originalImage.src});
+                                background-size: ${size.width}px ${size.height}px;
+                                background-position: ${bgX}px ${bgY}px;
+                                background-repeat: no-repeat;
+                                clip-path: path('${path}');
+                                -webkit-clip-path: path('${path}');
+                                position: absolute;
+                                transform: translate(-${tab}px, -${tab}px);
+                                left: ${correctX}px;
+                                top: ${correctY}px;
+                                transition: all 0.4s;
+                            `;
+                            dp.drawerItem.style.display = 'none';
+                        } else {
+                            dp.piece.style.transition = 'all 0.4s';
+                            dp.piece.style.left = correctX + 'px';
+                            dp.piece.style.top = correctY + 'px';
+                            // 重置旋轉角度
+                            dp.piece.style.transform = dp.piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                        }
+                        
+                        dp.piece.correctX = correctX;
+                        dp.piece.correctY = correctY;
                         dp.piece.currentRotation = 0;
-                        dp.piece.isPlaced = true; dp.isPlaced = true;
-                        if (!dp.piece.parentElement) container.appendChild(dp.piece);
+                        dp.piece.isPlaced = true; 
+                        dp.isPlaced = true;
+                        if (dp.piece.parentElement !== container) container.appendChild(dp.piece);
                         dp.drawerItem.classList.add('placed');
                         updateDrawerCount();
                     }, i * 80);
@@ -1957,6 +3162,36 @@
                 showCompletionMessage();
             }, drawerPieces.length * 80 + 500);
         }
+        
+        // 背景顏色
+        let bgColor = '#1a1a2e';
+        
+        function toggleColorPicker() {
+            const popup = document.getElementById('colorPickerPopup');
+            popup.classList.toggle('show');
+        }
+        
+        function setBgColor(color) {
+            bgColor = color;
+            document.getElementById('gameArea').style.background = color;
+            document.getElementById('colorPickerBtn').style.background = color;
+            
+            // 更新選項狀態
+            document.querySelectorAll('.color-option').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.color === color);
+            });
+            
+            // 關閉彈窗
+            document.getElementById('colorPickerPopup').classList.remove('show');
+        }
+        
+        // 點擊其他地方關閉顏色選擇器
+        document.addEventListener('click', function(e) {
+            const wrapper = document.querySelector('.color-picker-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                document.getElementById('colorPickerPopup').classList.remove('show');
+            }
+        });
 
         // 提示開關
         document.getElementById('toggleHint').addEventListener('change', function() {
@@ -1986,15 +3221,24 @@
                     const div = dp.drawerItem.pieceDiv;
                     const svg = dp.drawerItem.pieceSvg;
                     const tab = dp.drawerItem.tab;
-                    if (div) {
-                        div.style.transform = randomRotation !== 0 
-                            ? `translate(-${tab}px,-${tab}px) rotate(${randomRotation}deg)` 
-                            : `translate(-${tab}px,-${tab}px)`;
+                    
+                    if (trayMode) {
+                        // 托盤模式：需要 translate
+                        if (div) {
+                            div.style.transform = randomRotation !== 0 
+                                ? `translate(-${tab}px,-${tab}px) rotate(${randomRotation}deg)` 
+                                : `translate(-${tab}px,-${tab}px)`;
+                        }
+                    } else {
+                        // 散落模式：不需要 translate
+                        if (div) {
+                            div.style.transform = randomRotation !== 0 
+                                ? `rotate(${randomRotation}deg)` : '';
+                        }
                     }
                     if (svg) {
                         svg.style.transform = randomRotation !== 0 
-                            ? `rotate(${randomRotation}deg)` 
-                            : '';
+                            ? `rotate(${randomRotation}deg)` : '';
                         svg.style.transformOrigin = 'center center';
                     }
                 }
@@ -2018,7 +3262,7 @@
                 const container = document.getElementById('puzzleContainer');
                 
                 const saveData = {
-                    version: 2,
+                    version: 4,
                     timestamp: Date.now(),
                     // 圖片資料
                     imageData: originalImage.src,
@@ -2028,7 +3272,9 @@
                     cols: cols,
                     enableRotation: enableRotation,
                     scatterMode: scatterMode,
+                    trayMode: trayMode,
                     showHint: showHint,
+                    bgColor: bgColor,
                     // UI 狀態
                     drawerPosition: drawerPosition,
                     drawerSize: drawerSize,
@@ -2044,10 +3290,10 @@
                         index: dp.piece.pieceNumber - 1,
                         isPlaced: dp.isPlaced,
                         rotation: dp.piece.currentRotation || 0,
-                        // drawer 中的位置（散亂模式）
-                        drawerLeft: dp.drawerItem.style.left,
-                        drawerTop: dp.drawerItem.style.top,
-                        drawerZIndex: dp.drawerItem.style.zIndex
+                        // 位置（托盤或散落模式）
+                        itemLeft: dp.drawerItem.style.left,
+                        itemTop: dp.drawerItem.style.top,
+                        itemZIndex: dp.drawerItem.style.zIndex
                     }))
                 };
                 
@@ -2079,7 +3325,14 @@
         // 啟動自動存檔
         function startAutoSave() {
             stopAutoSave();
-            autoSaveTimer = setInterval(saveGame, 30000); // 每 30 秒存檔
+            autoSaveTimer = setInterval(() => {
+                // 只在沒有拖曳時存檔
+                if (!containerDrag.active && 
+                    !isScatterDragging && !isScatterTouchDragging &&
+                    !isMouseDragging && !isDraggingFromDrawer) {
+                    saveGame();
+                }
+            }, 5000); // 每 5 秒存檔
         }
         
         // 停止自動存檔
@@ -2097,12 +3350,25 @@
                     // 設定選項
                     document.getElementById('pieceCount').value = saveData.pieceCount;
                     document.getElementById('toggleRotation').checked = saveData.enableRotation;
-                    document.getElementById('toggleScatter').checked = saveData.scatterMode;
                     document.getElementById('toggleHint').checked = saveData.showHint;
+                    // 托盤模式（向後兼容舊存檔）
+                    const savedTrayMode = saveData.trayMode !== undefined ? saveData.trayMode : true;
+                    document.getElementById('toggleTray').checked = savedTrayMode;
+                    trayMode = savedTrayMode;
+                    
                     enableRotation = saveData.enableRotation;
-                    scatterMode = saveData.scatterMode;
+                    scatterMode = saveData.scatterMode || false;
                     showHint = saveData.showHint;
                     drawerSize = saveData.drawerSize || 180;
+                    
+                    // 恢復背景顏色
+                    if (saveData.bgColor) {
+                        setBgColor(saveData.bgColor);
+                    }
+                    
+                    // 恢復散亂按鈕狀態
+                    const scatterBtn = document.getElementById('scatterBtn');
+                    if (scatterBtn) scatterBtn.classList.toggle('active', scatterMode);
                     
                     // 恢復 drawer 方向
                     if (saveData.drawerPosition) {
@@ -2180,9 +3446,19 @@
                             dp.piece.currentRotation = savedPiece.rotation;
                             dp.drawerItem.currentRotation = savedPiece.rotation;
                             const div = dp.drawerItem.pieceDiv;
+                            const svg = dp.drawerItem.pieceSvg;
                             const tab = dp.drawerItem.tab;
                             if (div) {
-                                div.style.transform = `translate(-${tab}px,-${tab}px) rotate(${savedPiece.rotation}deg)`;
+                                // 托盤模式需要 translate，散落模式不需要
+                                if (trayMode) {
+                                    div.style.transform = `translate(-${tab}px,-${tab}px) rotate(${savedPiece.rotation}deg)`;
+                                } else {
+                                    div.style.transform = `rotate(${savedPiece.rotation}deg)`;
+                                }
+                            }
+                            if (svg) {
+                                svg.style.transform = `rotate(${savedPiece.rotation}deg)`;
+                                svg.style.transformOrigin = 'center center';
                             }
                         }
                         
@@ -2197,23 +3473,92 @@
                             dp.isPlaced = true;
                             container.appendChild(dp.piece);
                             dp.drawerItem.classList.add('placed');
-                        } else if (scatterMode && savedPiece.drawerLeft) {
-                            // 散亂模式中的位置
-                            dp.drawerItem.style.left = savedPiece.drawerLeft;
-                            dp.drawerItem.style.top = savedPiece.drawerTop;
-                            if (savedPiece.drawerZIndex) {
-                                dp.drawerItem.style.zIndex = savedPiece.drawerZIndex;
+                            if (!trayMode) {
+                                dp.drawerItem.style.display = 'none';
+                            }
+                        } else {
+                            // 未放置的拼圖 - 恢復位置（支援新舊欄位名）
+                            const itemLeft = savedPiece.itemLeft || savedPiece.drawerLeft;
+                            const itemTop = savedPiece.itemTop || savedPiece.drawerTop;
+                            const itemZIndex = savedPiece.itemZIndex || savedPiece.drawerZIndex;
+                            
+                            if (itemLeft) {
+                                dp.drawerItem.style.left = itemLeft;
+                                dp.drawerItem.style.top = itemTop;
+                                if (itemZIndex) {
+                                    dp.drawerItem.style.zIndex = itemZIndex;
+                                }
                             }
                         }
                     });
                     
                     updateDrawerCount();
+                    
+                    // 散落模式：更新虛線邊框和拼圖大小
+                    if (!trayMode && saveData.containerScale !== undefined && saveData.containerScale !== 1) {
+                        // 更新虛線邊框
+                        showScatterBorder();
+                        
+                        // 縮放拼圖大小
+                        const scaleRatio = saveData.containerScale; // 從 1 縮放到目標值
+                        drawerPieces.forEach(dp => {
+                            if (dp.isPlaced) return;
+                            const wrapper = dp.drawerItem;
+                            if (!wrapper) return;
+                            
+                            // 更新 wrapper 大小
+                            const wrapperW = parseFloat(wrapper.style.width) * scaleRatio;
+                            const wrapperH = parseFloat(wrapper.style.height) * scaleRatio;
+                            wrapper.style.width = wrapperW + 'px';
+                            wrapper.style.height = wrapperH + 'px';
+                            
+                            // 更新內部尺寸
+                            wrapper.pw = (wrapper.pw || baseContainerWidth / cols) * scaleRatio;
+                            wrapper.ph = (wrapper.ph || baseContainerHeight / rows) * scaleRatio;
+                            wrapper.tab = (wrapper.tab || Math.min(wrapper.pw, wrapper.ph) * 0.15) * scaleRatio;
+                            
+                            // 更新 pieceDiv
+                            const div = wrapper.pieceDiv;
+                            if (div) {
+                                const pw = wrapper.pw;
+                                const ph = wrapper.ph;
+                                const tab = wrapper.tab;
+                                const pieceRow = Math.floor((dp.piece.pieceNumber - 1) / cols);
+                                const pieceCol = (dp.piece.pieceNumber - 1) % cols;
+                                const size = { width: pw * cols, height: ph * rows };
+                                const bgX = -(pieceCol * pw) + tab;
+                                const bgY = -(pieceRow * ph) + tab;
+                                const path = generatePiecePath(pw, ph, dp.piece.edges);
+                                
+                                div.style.width = wrapperW + 'px';
+                                div.style.height = wrapperH + 'px';
+                                div.style.backgroundSize = `${size.width}px ${size.height}px`;
+                                div.style.backgroundPosition = `${bgX}px ${bgY}px`;
+                                div.style.clipPath = `path('${path}')`;
+                                div.style.webkitClipPath = `path('${path}')`;
+                            }
+                            
+                            // 更新 SVG 邊框
+                            const svg = wrapper.pieceSvg;
+                            if (svg) {
+                                const pw = wrapper.pw;
+                                const ph = wrapper.ph;
+                                const borderPath = generateCurvedPath(pw, ph, dp.piece.edges);
+                                svg.setAttribute('width', wrapperW);
+                                svg.setAttribute('height', wrapperH);
+                                svg.setAttribute('viewBox', `0 0 ${wrapperW} ${wrapperH}`);
+                                const pathEl = svg.querySelector('path');
+                                if (pathEl) pathEl.setAttribute('d', borderPath);
+                            }
+                        });
+                    }
+                    
                     startAutoSave();
                     console.log('遊戲已恢復');
                 }
             }, 100);
             
-            startGame(true);  // skipConfirm = true，跳過確認
+            startGame(true, true);  // skipConfirm = true, isRestoring = true
         }
         
         // 顯示確認新遊戲對話框
