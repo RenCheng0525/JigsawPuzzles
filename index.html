@@ -1110,6 +1110,36 @@
         }
         
         initPinchZoom();
+        
+        // 滑鼠滾輪縮放（散落模式）
+        function initWheelZoom() {
+            const gameArea = document.getElementById('gameArea');
+            
+            gameArea.addEventListener('wheel', function(e) {
+                // 只在散落模式且遊戲進行中才支援滾輪縮放
+                if (trayMode || !isPlaying) return;
+                
+                e.preventDefault();
+                
+                // 根據滾輪方向決定縮放
+                const delta = e.deltaY > 0 ? -0.05 : 0.05; // 向下滾 = 縮小，向上滾 = 放大
+                const newScale = Math.max(0.5, Math.min(2.0, containerScale + delta));
+                
+                if (newScale === containerScale) return;
+                
+                const scaleRatio = newScale / containerScale;
+                containerScale = newScale;
+                
+                const container = document.getElementById('puzzleContainer');
+                container.style.transform = `scale(${containerScale})`;
+                
+                // 同時縮放未放置的拼圖和邊框
+                updateScatterPiecesScale(scaleRatio);
+                updateScatterBorder();
+            }, {passive: false});
+        }
+        
+        initWheelZoom();
 
         // 拼圖路徑生成 - 標準版本
         function generateCurvedPath(width, height, edges) {
