@@ -364,7 +364,6 @@
             <input type="file" id="imageInput" accept="image/*" style="display:none;">
             <button class="button" onclick="selectImage()">📷 選擇圖片</button>
             <select id="pieceCount">
-                <option value="16">4x4 (16片)</option>
                 <option value="25">5x5 (25片)</option>
                 <option value="36">6x6 (36片)</option>
                 <option value="49">7x7 (49片)</option>
@@ -373,6 +372,14 @@
                 <option value="100">10x10 (100片)</option>
                 <option value="121">11x11 (121片)</option>
                 <option value="144">12x12 (144片)</option>
+                <option value="169">13x13 (169片)</option>
+                <option value="196">14x14 (196片)</option>
+                <option value="225">15x15 (225片)</option>
+                <option value="256">16x16 (256片)</option>
+                <option value="289">17x17 (289片)</option>
+                <option value="324">18x18 (324片)</option>
+                <option value="361">19x19 (361片)</option>
+                <option value="400">20x20 (400片)</option>
             </select>
             <button class="button" onclick="startGame()">▶ 開始遊戲</button>
             <button class="button" onclick="autoComplete()">✨ 自動完成</button>
@@ -429,6 +436,10 @@
         let audioContext = null;
         let controlsCollapsed = false;
         let drawerPieceZIndex = 1; // 散亂模式中拼圖的 z-index 計數器
+        
+        // 存檔相關
+        const SAVE_KEY = 'jigsaw_puzzle_save';
+        let autoSaveTimer = null;
         
         // 拼圖區拖曳相關
         let containerDrag = {
@@ -1168,8 +1179,8 @@
             
             wrapper.appendChild(div);
             
-            // 隨機旋轉（如果啟用）
-            const randomRotation = enableRotation ? [0, 90, 180, 270][Math.floor(Math.random() * 4)] : 0;
+            // 隨機旋轉（如果啟用）- 0~359 任意角度
+            const randomRotation = enableRotation ? Math.floor(Math.random() * 360) : 0;
             wrapper.currentRotation = randomRotation;
             piece.currentRotation = randomRotation;
             if (randomRotation !== 0) {
@@ -1206,8 +1217,18 @@
         }
 
         // 開始遊戲
-        function startGame() {
+        function startGame(skipConfirm = false) {
             if (!originalImage) { alert('請先選擇圖片！'); return; }
+            
+            // 檢查是否有進行中的遊戲
+            if (!skipConfirm && isPlaying && drawerPieces.some(dp => dp.isPlaced)) {
+                showConfirmNewGameDialog();
+                return;
+            }
+            
+            // 清除舊存檔（開始新遊戲）
+            clearSave();
+            stopAutoSave();
             
             // 顯示進度
             const progressOverlay = document.createElement('div');
@@ -1263,13 +1284,13 @@
                 container.style.height = size.height + 'px';
                 container.style.left = pos.left + 'px';
                 container.style.top = pos.top + 'px';
-                container.style.transform = 'scale(1)';
+                container.style.transform = 'scale(0.85)';
                 container.style.transformOrigin = 'center center';
                 
                 // 儲存原始容器大小供縮放使用
                 baseContainerWidth = size.width;
                 baseContainerHeight = size.height;
-                containerScale = 1;
+                containerScale = 0.85;  // 初始縮放為 85%
                 
                 // 記錄原始位置，設定拖曳範圍（半個拼圖區大小）
                 containerOriginalPos = { left: pos.left, top: pos.top };
@@ -1352,6 +1373,9 @@
                 }
                 
                 updateDrawerCount();
+                
+                // 啟動自動存檔
+                startAutoSave();
                 
                 await updateProgress(100, '完成！');
                 setTimeout(() => progressOverlay.remove(), 300);
@@ -1821,11 +1845,16 @@
         function checkWin() {
             if (drawerPieces.every(d => d.isPlaced)) {
                 isPlaying = false;
+                stopAutoSave();
+                clearSave();
                 playWinSound();
                 if (navigator.vibrate) navigator.vibrate([100,50,100]);
                 // 展開控制面板
                 showControlsDrawer();
                 setTimeout(() => showCompletionMessage(), 300);
+            } else {
+                // 每放置一片就存檔
+                saveGame();
             }
         }
         
@@ -1869,7 +1898,9 @@
                 }
             });
             setTimeout(() => { 
-                isPlaying = false; 
+                isPlaying = false;
+                stopAutoSave();
+                clearSave();
                 playWinSound(); 
                 showControlsDrawer();
                 showCompletionMessage();
@@ -1898,7 +1929,7 @@
             // 更新未放置拼圖的旋轉
             drawerPieces.forEach(dp => {
                 if (!dp.isPlaced) {
-                    const randomRotation = enableRotation ? [0, 90, 180, 270][Math.floor(Math.random() * 4)] : 0;
+                    const randomRotation = enableRotation ? Math.floor(Math.random() * 360) : 0;
                     dp.drawerItem.currentRotation = randomRotation;
                     dp.piece.currentRotation = randomRotation;
                     const div = dp.drawerItem.pieceDiv;
@@ -1916,6 +1947,326 @@
         document.getElementById('pieceCount').addEventListener('change', function() {
             if (originalImage) {
                 startGame();
+            }
+        });
+        
+        // ========== 存檔功能 ==========
+        
+        // 儲存遊戲狀態
+        function saveGame() {
+            if (!isPlaying || !originalImage) return;
+            
+            try {
+                const saveData = {
+                    version: 1,
+                    timestamp: Date.now(),
+                    // 圖片資料
+                    imageData: originalImage.src,
+                    // 遊戲設定
+                    pieceCount: parseInt(document.getElementById('pieceCount').value),
+                    rows: rows,
+                    cols: cols,
+                    enableRotation: enableRotation,
+                    scatterMode: scatterMode,
+                    showHint: showHint,
+                    // UI 狀態
+                    drawerPosition: drawerPosition,
+                    drawerSize: drawerSize,
+                    containerScale: containerScale,
+                    // 拼圖狀態
+                    pieces: drawerPieces.map(dp => ({
+                        index: dp.piece.pieceNumber - 1,
+                        isPlaced: dp.isPlaced,
+                        rotation: dp.piece.currentRotation || 0,
+                        // drawer 中的位置（散亂模式）
+                        drawerLeft: dp.drawerItem.style.left,
+                        drawerTop: dp.drawerItem.style.top,
+                        drawerZIndex: dp.drawerItem.style.zIndex
+                    }))
+                };
+                
+                localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+                console.log('遊戲已儲存');
+            } catch (e) {
+                console.error('儲存失敗:', e);
+            }
+        }
+        
+        // 載入遊戲狀態
+        function loadGame() {
+            try {
+                const saved = localStorage.getItem(SAVE_KEY);
+                if (!saved) return null;
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error('載入失敗:', e);
+                return null;
+            }
+        }
+        
+        // 清除存檔
+        function clearSave() {
+            localStorage.removeItem(SAVE_KEY);
+            console.log('存檔已清除');
+        }
+        
+        // 啟動自動存檔
+        function startAutoSave() {
+            stopAutoSave();
+            autoSaveTimer = setInterval(saveGame, 30000); // 每 30 秒存檔
+        }
+        
+        // 停止自動存檔
+        function stopAutoSave() {
+            if (autoSaveTimer) {
+                clearInterval(autoSaveTimer);
+                autoSaveTimer = null;
+            }
+        }
+        
+        // 從存檔恢復遊戲
+        function restoreGame(saveData) {
+            return new Promise((resolve, reject) => {
+                try {
+                    // 設定選項
+                    document.getElementById('pieceCount').value = saveData.pieceCount;
+                    document.getElementById('toggleRotation').checked = saveData.enableRotation;
+                    document.getElementById('toggleScatter').checked = saveData.scatterMode;
+                    document.getElementById('toggleHint').checked = saveData.showHint;
+                    enableRotation = saveData.enableRotation;
+                    scatterMode = saveData.scatterMode;
+                    showHint = saveData.showHint;
+                    drawerSize = saveData.drawerSize || 180;
+                    
+                    // 載入圖片
+                    originalImage = new Image();
+                    originalImage.onload = function() {
+                        // 開始遊戲（會建立拼圖）
+                        startGameWithRestore(saveData);
+                        resolve();
+                    };
+                    originalImage.onerror = function() {
+                        reject(new Error('圖片載入失敗'));
+                    };
+                    originalImage.src = saveData.imageData;
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }
+        
+        // 帶恢復的開始遊戲
+        function startGameWithRestore(saveData) {
+            // 正常開始遊戲流程，但在完成後恢復狀態
+            const originalStartGame = startGame;
+            
+            // 臨時修改，讓 startGame 完成後恢復狀態
+            const checkAndRestore = setInterval(() => {
+                if (isPlaying && drawerPieces.length > 0) {
+                    clearInterval(checkAndRestore);
+                    
+                    // 恢復縮放
+                    if (saveData.containerScale) {
+                        containerScale = saveData.containerScale;
+                        document.getElementById('puzzleContainer').style.transform = `scale(${containerScale})`;
+                    }
+                    
+                    // 恢復每個拼圖的狀態
+                    const container = document.getElementById('puzzleContainer');
+                    saveData.pieces.forEach(savedPiece => {
+                        const dp = drawerPieces.find(d => d.piece.pieceNumber - 1 === savedPiece.index);
+                        if (!dp) return;
+                        
+                        // 恢復旋轉
+                        if (savedPiece.rotation !== 0) {
+                            dp.piece.currentRotation = savedPiece.rotation;
+                            dp.drawerItem.currentRotation = savedPiece.rotation;
+                            const div = dp.drawerItem.pieceDiv;
+                            const tab = dp.drawerItem.tab;
+                            if (div) {
+                                div.style.transform = `translate(-${tab}px,-${tab}px) rotate(${savedPiece.rotation}deg)`;
+                            }
+                        }
+                        
+                        // 恢復位置
+                        if (savedPiece.isPlaced) {
+                            // 已放置的拼圖
+                            dp.piece.style.left = dp.piece.correctX + 'px';
+                            dp.piece.style.top = dp.piece.correctY + 'px';
+                            dp.piece.style.transform = dp.piece.style.transform.replace(/rotate\([^)]+\)/g, '').trim();
+                            dp.piece.currentRotation = 0;
+                            dp.piece.isPlaced = true;
+                            dp.isPlaced = true;
+                            container.appendChild(dp.piece);
+                            dp.drawerItem.classList.add('placed');
+                        } else if (scatterMode && savedPiece.drawerLeft) {
+                            // 散亂模式中的位置
+                            dp.drawerItem.style.left = savedPiece.drawerLeft;
+                            dp.drawerItem.style.top = savedPiece.drawerTop;
+                            if (savedPiece.drawerZIndex) {
+                                dp.drawerItem.style.zIndex = savedPiece.drawerZIndex;
+                            }
+                        }
+                    });
+                    
+                    updateDrawerCount();
+                    startAutoSave();
+                    console.log('遊戲已恢復');
+                }
+            }, 100);
+            
+            startGame(true);  // skipConfirm = true，跳過確認
+        }
+        
+        // 顯示確認新遊戲對話框
+        function showConfirmNewGameDialog() {
+            const placedCount = drawerPieces.filter(dp => dp.isPlaced).length;
+            const totalCount = drawerPieces.length;
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 10000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: #2a2a2a; border-radius: 12px; padding: 24px;
+                max-width: 320px; text-align: center; color: white;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            `;
+            
+            dialog.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                <h3 style="margin: 0 0 12px; font-size: 18px;">確定要開始新遊戲？</h3>
+                <p style="margin: 0 0 20px; color: #aaa; font-size: 14px;">
+                    當前進度 (${placedCount}/${totalCount} 片) 將會遺失
+                </p>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button id="confirmYes" style="
+                        padding: 12px 24px; border: none; border-radius: 8px;
+                        background: #d9534f; color: white; font-size: 16px;
+                        cursor: pointer;
+                    ">開始新遊戲</button>
+                    <button id="confirmNo" style="
+                        padding: 12px 24px; border: none; border-radius: 8px;
+                        background: #555; color: white; font-size: 16px;
+                        cursor: pointer;
+                    ">取消</button>
+                </div>
+            `;
+            
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+            
+            document.getElementById('confirmYes').onclick = () => {
+                overlay.remove();
+                startGame(true);  // skipConfirm = true
+            };
+            
+            document.getElementById('confirmNo').onclick = () => {
+                overlay.remove();
+            };
+        }
+        
+        // 顯示恢復對話框
+        function showRestoreDialog(saveData) {
+            const date = new Date(saveData.timestamp);
+            const timeStr = date.toLocaleString('zh-TW');
+            const placedCount = saveData.pieces.filter(p => p.isPlaced).length;
+            const totalCount = saveData.pieces.length;
+            
+            // 建立對話框
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 10000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: #2a2a2a; border-radius: 12px; padding: 24px;
+                max-width: 320px; text-align: center; color: white;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            `;
+            
+            dialog.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 16px;">🧩</div>
+                <h3 style="margin: 0 0 12px; font-size: 18px;">發現未完成的拼圖</h3>
+                <p style="margin: 0 0 8px; color: #aaa; font-size: 14px;">
+                    ${saveData.cols}x${saveData.rows} (${totalCount}片)
+                </p>
+                <p style="margin: 0 0 8px; color: #aaa; font-size: 14px;">
+                    進度：${placedCount}/${totalCount} 片
+                </p>
+                <p style="margin: 0 0 20px; color: #888; font-size: 12px;">
+                    ${timeStr}
+                </p>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button id="restoreYes" style="
+                        padding: 12px 24px; border: none; border-radius: 8px;
+                        background: #4a90d9; color: white; font-size: 16px;
+                        cursor: pointer;
+                    ">繼續遊戲</button>
+                    <button id="restoreNo" style="
+                        padding: 12px 24px; border: none; border-radius: 8px;
+                        background: #555; color: white; font-size: 16px;
+                        cursor: pointer;
+                    ">重新開始</button>
+                </div>
+            `;
+            
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+            
+            // 事件處理
+            document.getElementById('restoreYes').onclick = async () => {
+                overlay.remove();
+                try {
+                    await restoreGame(saveData);
+                } catch (e) {
+                    console.error('恢復失敗:', e);
+                    clearSave();
+                    alert('恢復失敗，請重新開始遊戲');
+                }
+            };
+            
+            document.getElementById('restoreNo').onclick = () => {
+                overlay.remove();
+                clearSave();
+            };
+        }
+        
+        // 頁面載入時檢查存檔
+        window.addEventListener('load', () => {
+            const saveData = loadGame();
+            if (saveData && saveData.pieces && saveData.pieces.length > 0) {
+                // 檢查是否有未完成的進度
+                const hasProgress = saveData.pieces.some(p => p.isPlaced);
+                const allComplete = saveData.pieces.every(p => p.isPlaced);
+                
+                if (hasProgress && !allComplete) {
+                    showRestoreDialog(saveData);
+                } else {
+                    // 全部完成或沒有進度，清除存檔
+                    clearSave();
+                }
+            }
+        });
+        
+        // 頁面關閉前儲存
+        window.addEventListener('beforeunload', () => {
+            if (isPlaying) {
+                saveGame();
+            }
+        });
+        
+        // 頁面隱藏時儲存（手機切換 app）
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && isPlaying) {
+                saveGame();
             }
         });
     </script>
