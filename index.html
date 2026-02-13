@@ -439,7 +439,7 @@
                 <label for="toggleHint" class="checkbox-label">提示</label>
             </div>
             <div class="checkbox-container">
-                <input type="checkbox" id="toggleRotation" class="checkbox-input">
+                <input type="checkbox" id="toggleRotation" class="checkbox-input" checked>
                 <label for="toggleRotation" class="checkbox-label">旋轉</label>
             </div>
             <div class="checkbox-container">
@@ -491,7 +491,7 @@
         let isPlaying = false;
         let edges = null;
         let showHint = false;
-        let enableRotation = false;
+        let enableRotation = true;
         let scatterMode = false; // 散亂模式
         let trayMode = false; // 托盤模式（true=使用drawer, false=散落在格線區周圍）
         let rows, cols;
