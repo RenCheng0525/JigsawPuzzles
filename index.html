@@ -411,7 +411,9 @@
 
 <body>
     <div class="game-area" id="gameArea">
-        <div id="puzzleContainer" class="puzzle-container"></div>
+        <div id="worldContainer" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%;">
+            <div id="puzzleContainer" class="puzzle-container"></div>
+        </div>
         
         <!-- 控制面板抽屜 -->
         <div class="controls-drawer" id="controlsDrawer">
@@ -533,6 +535,7 @@
         };
         let containerScale = 1; // 目前縮放比例
         let baseContainerWidth = 0, baseContainerHeight = 0; // 原始容器大小
+        let worldOffset = { x: 0, y: 0 }; // 世界平移偏移
 
         // 選擇圖片
         function selectImage() {
@@ -758,7 +761,7 @@
             const gameArea = document.getElementById('gameArea');
             const container = document.getElementById('puzzleContainer');
             
-            // 滑鼠事件 - 在 game-area 空白處拖曳整個拼圖區
+            // 滑鼠事件 - 在 game-area 空白處拖曳
             gameArea.addEventListener('mousedown', function(e) {
                 if (!isPlaying) return;
                 // 排除 UI 元素
@@ -769,15 +772,38 @@
                     e.target.closest('.controls-toggle') ||
                     e.target.closest('.drawer-controls')) return;
                 
+                // 判斷是否在虛線邊框內
+                const gameAreaRect = gameArea.getBoundingClientRect();
+                const clickX = e.clientX - gameAreaRect.left;
+                const clickY = e.clientY - gameAreaRect.top;
+                
+                const baseMargin = 10;
+                const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+                const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+                const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
+                const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
+                
+                // 加上世界平移偏移
+                const actualBorderLeft = borderLeft + worldOffset.x;
+                const actualBorderTop = borderTop + worldOffset.y;
+                
+                const insideBorder = clickX >= actualBorderLeft && 
+                                     clickX <= actualBorderLeft + borderWidth &&
+                                     clickY >= actualBorderTop && 
+                                     clickY <= actualBorderTop + borderHeight;
+                
                 containerDrag.active = true;
                 containerDrag.startX = e.clientX;
                 containerDrag.startY = e.clientY;
                 containerDrag.startLeft = parseFloat(container.style.left) || 0;
                 containerDrag.startTop = parseFloat(container.style.top) || 0;
+                containerDrag.isWorldPan = !insideBorder && !trayMode; // 虛線外且散落模式才是世界平移
+                containerDrag.startWorldX = worldOffset.x;
+                containerDrag.startWorldY = worldOffset.y;
                 e.preventDefault();
             });
             
-            // 觸控事件 - 在 game-area 空白處拖曳整個拼圖區
+            // 觸控事件 - 在 game-area 空白處拖曳
             gameArea.addEventListener('touchstart', function(e) {
                 if (!isPlaying) return;
                 if (e.target.closest('.puzzle-piece') || 
@@ -788,91 +814,148 @@
                     e.target.closest('.drawer-controls')) return;
                 
                 const touch = e.touches[0];
+                
+                // 判斷是否在虛線邊框內
+                const gameAreaRect = gameArea.getBoundingClientRect();
+                const clickX = touch.clientX - gameAreaRect.left;
+                const clickY = touch.clientY - gameAreaRect.top;
+                
+                const baseMargin = 10;
+                const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+                const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+                const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
+                const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
+                
+                // 加上世界平移偏移
+                const actualBorderLeft = borderLeft + worldOffset.x;
+                const actualBorderTop = borderTop + worldOffset.y;
+                
+                const insideBorder = clickX >= actualBorderLeft && 
+                                     clickX <= actualBorderLeft + borderWidth &&
+                                     clickY >= actualBorderTop && 
+                                     clickY <= actualBorderTop + borderHeight;
+                
                 containerDrag.active = true;
                 containerDrag.startX = touch.clientX;
                 containerDrag.startY = touch.clientY;
                 containerDrag.startLeft = parseFloat(container.style.left) || 0;
                 containerDrag.startTop = parseFloat(container.style.top) || 0;
+                containerDrag.isWorldPan = !insideBorder && !trayMode;
+                containerDrag.startWorldX = worldOffset.x;
+                containerDrag.startWorldY = worldOffset.y;
             }, {passive: true});
         }
         
         document.addEventListener('mousemove', function(e) {
             if (!containerDrag.active) return;
             
-            const container = document.getElementById('puzzleContainer');
             const dx = e.clientX - containerDrag.startX;
             const dy = e.clientY - containerDrag.startY;
             
-            // 限制拖曳範圍（格線區不能超出縮放後的虛線邊界）
-            let newLeft = containerDrag.startLeft + dx;
-            let newTop = containerDrag.startTop + dy;
-            
-            const gameArea = document.getElementById('gameArea');
-            const baseMargin = 10;
-            
-            // 縮放後的邊框範圍
-            const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
-            const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
-            const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
-            const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
-            
-            // 縮放後的格線區大小
-            const scaledContainerWidth = baseContainerWidth * containerScale;
-            const scaledContainerHeight = baseContainerHeight * containerScale;
-            const offsetX = (baseContainerWidth - scaledContainerWidth) / 2;
-            const offsetY = (baseContainerHeight - scaledContainerHeight) / 2;
-            
-            // 限制：格線區縮放後的邊緣不能超出虛線
-            const minLeft = borderLeft - offsetX;
-            const maxLeft = borderLeft + borderWidth - scaledContainerWidth - offsetX;
-            const minTop = borderTop - offsetY;
-            const maxTop = borderTop + borderHeight - scaledContainerHeight - offsetY;
-            
-            newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
-            newTop = Math.max(minTop, Math.min(maxTop, newTop));
-            
-            container.style.left = newLeft + 'px';
-            container.style.top = newTop + 'px';
+            if (containerDrag.isWorldPan) {
+                // 世界平移模式：移動整個世界（格線區 + 拼圖 + 邊框）
+                const gameArea = document.getElementById('gameArea');
+                const maxOffset = Math.min(gameArea.offsetWidth, gameArea.offsetHeight) / 2;
+                
+                let newWorldX = containerDrag.startWorldX + dx;
+                let newWorldY = containerDrag.startWorldY + dy;
+                
+                // 限制平移範圍（半個螢幕）
+                newWorldX = Math.max(-maxOffset, Math.min(maxOffset, newWorldX));
+                newWorldY = Math.max(-maxOffset, Math.min(maxOffset, newWorldY));
+                
+                worldOffset.x = newWorldX;
+                worldOffset.y = newWorldY;
+                
+                // 更新所有元素位置
+                updateWorldPosition();
+            } else {
+                // 原來的格線區拖曳邏輯
+                const container = document.getElementById('puzzleContainer');
+                let newLeft = containerDrag.startLeft + dx;
+                let newTop = containerDrag.startTop + dy;
+                
+                const gameArea = document.getElementById('gameArea');
+                const baseMargin = 10;
+                
+                // 縮放後的邊框範圍
+                const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+                const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+                const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
+                const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
+                
+                // 縮放後的格線區大小
+                const scaledContainerWidth = baseContainerWidth * containerScale;
+                const scaledContainerHeight = baseContainerHeight * containerScale;
+                const offsetX = (baseContainerWidth - scaledContainerWidth) / 2;
+                const offsetY = (baseContainerHeight - scaledContainerHeight) / 2;
+                
+                // 限制：格線區縮放後的邊緣不能超出虛線
+                const minLeft = borderLeft - offsetX;
+                const maxLeft = borderLeft + borderWidth - scaledContainerWidth - offsetX;
+                const minTop = borderTop - offsetY;
+                const maxTop = borderTop + borderHeight - scaledContainerHeight - offsetY;
+                
+                newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
+                newTop = Math.max(minTop, Math.min(maxTop, newTop));
+                
+                container.style.left = newLeft + 'px';
+                container.style.top = newTop + 'px';
+            }
         });
         
         document.addEventListener('touchmove', function(e) {
             if (!containerDrag.active) return;
             
             const touch = e.touches[0];
-            const container = document.getElementById('puzzleContainer');
             const dx = touch.clientX - containerDrag.startX;
             const dy = touch.clientY - containerDrag.startY;
             
-            // 限制拖曳範圍（格線區不能超出縮放後的虛線邊界）
-            let newLeft = containerDrag.startLeft + dx;
-            let newTop = containerDrag.startTop + dy;
-            
-            const gameArea = document.getElementById('gameArea');
-            const baseMargin = 10;
-            
-            // 縮放後的邊框範圍
-            const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
-            const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
-            const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
-            const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
-            
-            // 縮放後的格線區大小
-            const scaledContainerWidth = baseContainerWidth * containerScale;
-            const scaledContainerHeight = baseContainerHeight * containerScale;
-            const offsetX = (baseContainerWidth - scaledContainerWidth) / 2;
-            const offsetY = (baseContainerHeight - scaledContainerHeight) / 2;
-            
-            // 限制：格線區縮放後的邊緣不能超出虛線
-            const minLeft = borderLeft - offsetX;
-            const maxLeft = borderLeft + borderWidth - scaledContainerWidth - offsetX;
-            const minTop = borderTop - offsetY;
-            const maxTop = borderTop + borderHeight - scaledContainerHeight - offsetY;
-            
-            newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
-            newTop = Math.max(minTop, Math.min(maxTop, newTop));
-            
-            container.style.left = newLeft + 'px';
-            container.style.top = newTop + 'px';
+            if (containerDrag.isWorldPan) {
+                // 世界平移模式
+                const gameArea = document.getElementById('gameArea');
+                const maxOffset = Math.min(gameArea.offsetWidth, gameArea.offsetHeight) / 2;
+                
+                let newWorldX = containerDrag.startWorldX + dx;
+                let newWorldY = containerDrag.startWorldY + dy;
+                
+                newWorldX = Math.max(-maxOffset, Math.min(maxOffset, newWorldX));
+                newWorldY = Math.max(-maxOffset, Math.min(maxOffset, newWorldY));
+                
+                worldOffset.x = newWorldX;
+                worldOffset.y = newWorldY;
+                
+                updateWorldPosition();
+            } else {
+                // 原來的格線區拖曳邏輯
+                const container = document.getElementById('puzzleContainer');
+                let newLeft = containerDrag.startLeft + dx;
+                let newTop = containerDrag.startTop + dy;
+                
+                const gameArea = document.getElementById('gameArea');
+                const baseMargin = 10;
+                
+                const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
+                const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+                const borderLeft = (gameArea.offsetWidth - borderWidth) / 2;
+                const borderTop = (gameArea.offsetHeight - borderHeight) / 2;
+                
+                const scaledContainerWidth = baseContainerWidth * containerScale;
+                const scaledContainerHeight = baseContainerHeight * containerScale;
+                const offsetX = (baseContainerWidth - scaledContainerWidth) / 2;
+                const offsetY = (baseContainerHeight - scaledContainerHeight) / 2;
+                
+                const minLeft = borderLeft - offsetX;
+                const maxLeft = borderLeft + borderWidth - scaledContainerWidth - offsetX;
+                const minTop = borderTop - offsetY;
+                const maxTop = borderTop + borderHeight - scaledContainerHeight - offsetY;
+                
+                newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
+                newTop = Math.max(minTop, Math.min(maxTop, newTop));
+                
+                container.style.left = newLeft + 'px';
+                container.style.top = newTop + 'px';
+            }
         }, {passive: true});
         
         document.addEventListener('mouseup', function() {
@@ -1442,6 +1525,9 @@
             }
             stopAutoSave();
             
+            // 重置世界平移
+            resetWorldOffset();
+            
             // 顯示進度
             const progressOverlay = document.createElement('div');
             progressOverlay.className = 'progress-overlay';
@@ -1645,9 +1731,9 @@
                         drawer.appendChild(item);
                         drawerPieces.push({piece, drawerItem: item, isPlaced: false});
                     } else {
-                        // 散落模式：創建散落拼圖項目並放到 gameArea
+                        // 散落模式：創建散落拼圖項目並放到 worldContainer
                         const item = createScatterItem(piece, pw, ph, tab);
-                        gameArea.appendChild(item);
+                        document.getElementById('worldContainer').appendChild(item);
                         drawerPieces.push({piece, drawerItem: item, isPlaced: false});
                     }
                     pieces.push(piece);
@@ -1986,10 +2072,14 @@
                 handle.style.display = 'none';
                 handle.classList.remove('visible');
                 
-                // 顯示邊界線
-                showScatterBorder();
+                // 重置世界平移
+                resetWorldOffset();
                 
-                // 重新計算容器位置和大小（50%）
+                // 刪除舊的邊框（如果存在）
+                const oldBorder = document.getElementById('scatterBorder');
+                if (oldBorder) oldBorder.remove();
+                
+                // 重新計算容器位置和大小（66%）
                 const size = calculateContainerSizeForScatter();
                 const pos = calculateContainerPositionForScatter(size.width, size.height);
                 container.style.width = size.width + 'px';
@@ -2005,7 +2095,7 @@
                 // 重建格線（因為大小改變）
                 rebuildOutlines();
                 
-                // 移動未放置的拼圖從 drawer 到 gameArea
+                // 移動未放置的拼圖從 drawer 到 worldContainer
                 const newPw = size.width / cols;
                 const newPh = size.height / rows;
                 const newTab = Math.min(newPw, newPh) * 0.15;
@@ -2029,13 +2119,18 @@
                                 svg.style.transformOrigin = 'center center';
                             }
                         }
-                        gameArea.appendChild(newItem);
+                        document.getElementById('worldContainer').appendChild(newItem);
                         dp.drawerItem = newItem;
                     }
                 });
                 
                 // 散落拼圖到格線區周圍
                 scatterPiecesAroundContainer();
+                
+                // 顯示邊界線（確保 DOM 更新後再顯示）
+                setTimeout(() => {
+                    showScatterBorder();
+                }, 0);
             }
             
             updateDrawerCount();
@@ -2093,7 +2188,10 @@
         
         // 顯示散落模式邊界線（跟隨縮放）
         function showScatterBorder() {
+            const worldContainer = document.getElementById('worldContainer');
+            const container = document.getElementById('puzzleContainer');
             let border = document.getElementById('scatterBorder');
+            
             if (!border) {
                 border = document.createElement('div');
                 border.id = 'scatterBorder';
@@ -2104,26 +2202,68 @@
                     pointer-events: none;
                     z-index: 0;
                 `;
-                document.getElementById('gameArea').appendChild(border);
+                worldContainer.appendChild(border);
+            } else if (border.parentElement !== worldContainer) {
+                // 確保邊框在正確的容器中
+                border.remove();
+                worldContainer.appendChild(border);
             }
             
-            // 邊框大小 = 遊戲區域 * 縮放比例
             const gameArea = document.getElementById('gameArea');
             const baseMargin = 10;
             
-            // 縮放後的邊框大小
-            const scaledWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
-            const scaledHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
+            // 基礎邊框大小（scale=1 時）
+            const baseBorderWidth = gameArea.offsetWidth - baseMargin * 2;
+            const baseBorderHeight = gameArea.offsetHeight - baseMargin * 2;
             
-            // 置中
-            const left = (gameArea.offsetWidth - scaledWidth) / 2;
-            const top = (gameArea.offsetHeight - scaledHeight) / 2;
+            // 縮放後的邊框大小
+            const scaledWidth = baseBorderWidth * containerScale;
+            const scaledHeight = baseBorderHeight * containerScale;
+            
+            // 格線區中心位置
+            const containerCenterX = parseFloat(container.style.left) + parseFloat(container.style.width) / 2;
+            const containerCenterY = parseFloat(container.style.top) + parseFloat(container.style.height) / 2;
+            
+            // 基礎邊框中心（scale=1 時，邊框置中於 gameArea）
+            const baseBorderCenterX = gameArea.offsetWidth / 2;
+            const baseBorderCenterY = gameArea.offsetHeight / 2;
+            
+            // 邊框中心相對於格線區中心的偏移
+            const offsetX = baseBorderCenterX - containerCenterX;
+            const offsetY = baseBorderCenterY - containerCenterY;
+            
+            // 縮放後的偏移
+            const scaledOffsetX = offsetX * containerScale;
+            const scaledOffsetY = offsetY * containerScale;
+            
+            // 新的邊框中心位置
+            const newBorderCenterX = containerCenterX + scaledOffsetX;
+            const newBorderCenterY = containerCenterY + scaledOffsetY;
+            
+            // 邊框左上角位置
+            const left = newBorderCenterX - scaledWidth / 2;
+            const top = newBorderCenterY - scaledHeight / 2;
             
             border.style.left = left + 'px';
             border.style.top = top + 'px';
             border.style.width = scaledWidth + 'px';
             border.style.height = scaledHeight + 'px';
             border.style.display = 'block';
+        }
+        
+        // 更新整個世界的位置（格線區、拼圖、邊框）
+        function updateWorldPosition() {
+            const worldContainer = document.getElementById('worldContainer');
+            if (worldContainer) {
+                worldContainer.style.transform = `translate(${worldOffset.x}px, ${worldOffset.y}px)`;
+            }
+        }
+        
+        // 重置世界位置
+        function resetWorldOffset() {
+            worldOffset.x = 0;
+            worldOffset.y = 0;
+            updateWorldPosition();
         }
         
         // 更新散落邊框（縮放時呼叫）
@@ -2153,6 +2293,10 @@
             wrapper.style.zIndex = drawerPieceZIndex++;
             
             const rect = wrapper.getBoundingClientRect();
+            const gameArea = document.getElementById('gameArea');
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            
+            // offsetX/Y 是手指在 wrapper 內的相對位置
             scatterDragInfo = {
                 wrapper: wrapper,
                 piece: piece,
@@ -2161,7 +2305,10 @@
                 offsetX: e.clientX - rect.left,
                 offsetY: e.clientY - rect.top,
                 originalLeft: parseFloat(wrapper.style.left),
-                originalTop: parseFloat(wrapper.style.top)
+                originalTop: parseFloat(wrapper.style.top),
+                // 記錄開始時的 worldOffset，用於計算正確位置
+                startWorldOffsetX: worldOffset.x,
+                startWorldOffsetY: worldOffset.y
             };
             
             document.addEventListener('mousemove', handleScatterMouseMove);
@@ -2194,14 +2341,12 @@
             
             const wrapper = scatterDragInfo.wrapper;
             
-            // 直接移動 wrapper
-            const gameArea = document.getElementById('gameArea');
-            const gameAreaRect = gameArea.getBoundingClientRect();
-            
-            let newX = e.clientX - gameAreaRect.left - scatterDragInfo.offsetX;
-            let newY = e.clientY - gameAreaRect.top - scatterDragInfo.offsetY;
+            // 使用原始位置 + 移動量計算新位置
+            let newX = scatterDragInfo.originalLeft + dx;
+            let newY = scatterDragInfo.originalTop + dy;
             
             // 計算縮放後的虛線邊界
+            const gameArea = document.getElementById('gameArea');
             const baseMargin = 10;
             const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
             const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
@@ -2335,7 +2480,9 @@
                 offsetX: touch.clientX - rect.left,
                 offsetY: touch.clientY - rect.top,
                 originalLeft: parseFloat(wrapper.style.left),
-                originalTop: parseFloat(wrapper.style.top)
+                originalTop: parseFloat(wrapper.style.top),
+                startWorldOffsetX: worldOffset.x,
+                startWorldOffsetY: worldOffset.y
             };
             
             document.addEventListener('touchmove', handleScatterTouchMove, {passive: false});
@@ -2370,14 +2517,12 @@
             
             const wrapper = scatterTouchInfo.wrapper;
             
-            // 直接移動 wrapper
-            const gameArea = document.getElementById('gameArea');
-            const gameAreaRect = gameArea.getBoundingClientRect();
-            
-            let newX = touch.clientX - gameAreaRect.left - scatterTouchInfo.offsetX;
-            let newY = touch.clientY - gameAreaRect.top - scatterTouchInfo.offsetY;
+            // 使用原始位置 + 移動量計算新位置
+            let newX = scatterTouchInfo.originalLeft + dx;
+            let newY = scatterTouchInfo.originalTop + dy;
             
             // 計算縮放後的虛線邊界
+            const gameArea = document.getElementById('gameArea');
             const baseMargin = 10;
             const borderWidth = (gameArea.offsetWidth - baseMargin * 2) * containerScale;
             const borderHeight = (gameArea.offsetHeight - baseMargin * 2) * containerScale;
@@ -3337,6 +3482,9 @@
                     containerScale: containerScale,
                     containerLeft: container.style.left,
                     containerTop: container.style.top,
+                    // 世界平移
+                    worldOffsetX: worldOffset.x,
+                    worldOffsetY: worldOffset.y,
                     // 散亂模式 z-index 計數器
                     drawerPieceZIndex: drawerPieceZIndex,
                     // 拼圖狀態
@@ -3481,6 +3629,13 @@
                             left: parseFloat(saveData.containerLeft),
                             top: parseFloat(saveData.containerTop)
                         };
+                    }
+                    
+                    // 恢復世界平移
+                    if (saveData.worldOffsetX !== undefined && saveData.worldOffsetY !== undefined) {
+                        worldOffset.x = saveData.worldOffsetX;
+                        worldOffset.y = saveData.worldOffsetY;
+                        updateWorldPosition();
                     }
                     
                     // 恢復控制面板收合狀態
